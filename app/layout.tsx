@@ -1,12 +1,17 @@
-export const metadata = {
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+
+const robots = process.env.VERCEL_ENV === "preview" ? "noindex, nofollow" : "index, follow";
+
+export const metadata: Metadata = {
   title: "Tier Rank",
-  description: "Minimal scaffold",
-  robots: process.env.VERCEL_ENV === "preview" ? "noindex, nofollow" : "index, follow"
+  robots,
 };
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ja">
-      <body style={{ fontFamily: "system-ui, sans-serif", padding: 24 }}>{children}</body>
+    <html lang="en">
+      <body>{children}</body>
     </html>
   );
 }
