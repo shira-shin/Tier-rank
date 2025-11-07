@@ -1,19 +1,17 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
-import { SessionProvider } from "next-auth/react";
-
-const robots = process.env.VERCEL_ENV === "preview" ? "noindex, nofollow" : "index, follow";
+import React from "react";
+import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
   title: "Tier Rank",
-  robots,
+  robots: process.env.VERCEL_ENV === "preview" ? "noindex, nofollow" : "index, follow",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
-        <SessionProvider>{children}</SessionProvider>
+    <html lang="ja">
+      <body style={{ fontFamily: "system-ui, sans-serif", padding: 24 }}>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
