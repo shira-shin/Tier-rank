@@ -1,9 +1,9 @@
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
+import GoogleProvider from "next-auth/providers/google";
 
 const handler = NextAuth({
   providers: [
-    Google({
+    GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
@@ -11,4 +11,5 @@ const handler = NextAuth({
   session: { strategy: "jwt" },
 });
 
+// Next.js Route Module の要件に合わせ、GET/POST 以外は export しない
 export { handler as GET, handler as POST };
