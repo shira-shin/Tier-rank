@@ -1,42 +1,41 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { scoreWithAgent, type ScorePayload } from "@/lib/agent";
 
-import { scoreWithAgent } from "@/lib/agent";
-
-const bodySchema = z.object({
-  items: z.any(),
-  metrics: z.any(),
+const Body = z.object({
+  items: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        meta: z.any().optional(),
+      })
+    )
+    .nonempty(),
+  metrics: z
+    .array(
+      z.object({
+        name: z.string(),
+        type: z.enum(["numeric", "boolean", "likert"]),
+        direction: z.enum(["MAX", "MIN", "TARGET", "LOG"]),
+        weight: z.number().min(0),
+        threshold: z.number().optional(),
+        params: z.any().optional(),
+      })
+    )
+    .nonempty(),
   use_web_search: z.boolean().optional(),
 });
 
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-): Promise<Response> {
-  let body: unknown;
+export async function POST(req: NextRequest) {
+  const data = Body.parse(await req.json());
 
-  try {
-    body = await request.json();
-  } catch (error) {
-    return NextResponse.json(
-      { error: "INVALID_JSON", details: "Failed to parse request body" },
-      { status: 400 }
-    );
-  }
+  const payload: ScorePayload = {
+    items: data.items,
+    metrics: data.metrics,
+    use_web_search: data.use_web_search,
+  };
 
-  const parsed = bodySchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "INVALID_BODY", details: parsed.error.issues },
-      { status: 400 }
-    );
-  }
-
-  const agentResult = await scoreWithAgent({
-    ...parsed.data,
-    projectId: params.id,
-  });
-
+  const agentResult = await scoreWithAgent(payload);
   return NextResponse.json(agentResult);
 }
