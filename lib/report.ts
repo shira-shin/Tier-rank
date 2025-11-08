@@ -54,7 +54,7 @@ export function buildReportSummary(
 
   const metricInsights = metrics.length
     ? metrics.map((metric) => {
-        const { name, direction } = metric;
+        const { name, direction, type } = metric;
         const sortedByMetric = ranked
           .map((item) => ({
             item,
@@ -68,13 +68,11 @@ export function buildReportSummary(
         const label = nameMap.get(top.item.id ?? "") ?? top.item.id ?? "-";
         const valueText = formatPercent(top.value);
         const directionText =
-          direction === "MIN"
-            ? "低いほど高評価"
-            : direction === "TARGET"
-              ? "目標値に近いほど高評価"
-              : direction === "LOG"
-                ? "ログスケール評価"
-                : "高いほど高評価";
+          type === "formula"
+            ? "数式指標"
+            : direction === "MIN"
+              ? "低いほど高評価"
+              : "高いほど高評価";
         return `${name}: ${label} が最も評価されました（${valueText} / ${directionText}）。`;
       })
     : ["評価指標が設定されていないため、個別の考察はありません。評価軸を追加すると詳細が生成されます。"];
