@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { DragDropContext, Draggable, Droppable, type DropResult } from "react-beautiful-dnd";
 import clsx from "clsx";
 import Segmented from "@/components/Segmented";
@@ -15,8 +16,10 @@ import {
 } from "@/lib/export";
 import { buildReportSummary } from "@/lib/report";
 import { evalFormula, validateFormula } from "@/lib/formula";
+import { buildRankingUrl } from "@/lib/share";
 
 const HISTORY_KEY = "tier-rank-history";
+type PublishVisibility = "PUBLIC" | "UNLISTED" | "PRIVATE";
 
 const DEFAULT_ITEMS: ItemInput[] = [
   { id: "A", name: "候補A" },
@@ -67,6 +70,7 @@ function buildDummyScope(names: string[]) {
 }
 
 export default function ScoreForm() {
+  const { data: session } = useSession();
   const [items, setItems] = useState<ItemInput[]>(() => DEFAULT_ITEMS.map((item) => ({ ...item })));
   const [metrics, setMetrics] = useState<MetricInput[]>(() => SIMPLE_METRICS.map((metric) => ({ ...metric })));
   const [useWeb, setUseWeb] = useState(false);
@@ -79,9 +83,36 @@ export default function ScoreForm() {
   const [tab, setTab] = useState<ViewTab>("tier");
   const [collapsedItems, setCollapsedItems] = useState<Record<string, boolean>>({});
   const [collapsedMetrics, setCollapsedMetrics] = useState<Record<string, boolean>>({});
+  const [limitState, setLimitState] = useState<{
+    scoreRemaining?: number;
+    scoreReset?: string;
+    webRemaining?: number;
+    webReset?: string;
+  }>({});
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishStatus, setPublishStatus] = useState<"idle" | "loading" | "success">("idle");
+  const [publishError, setPublishError] = useState<string | undefined>();
+  const [publishedSlug, setPublishedSlug] = useState<string | undefined>();
+  const [publishTitle, setPublishTitle] = useState("");
+  const [publishCategory, setPublishCategory] = useState("");
+  const [publishTags, setPublishTags] = useState("");
+  const [publishSummary, setPublishSummary] = useState("");
+  const [publishVisibility, setPublishVisibility] = useState<PublishVisibility>("PUBLIC");
 
   const viewRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
+
+  const isLoggedIn = Boolean(session?.user);
+  const maxScorePerDay = isLoggedIn ? 50 : 5;
+  const maxWebPerDay = isLoggedIn ? 10 : 2;
+  const effectiveScoreRemaining = limitState.scoreRemaining ?? maxScorePerDay;
+  const effectiveWebRemaining = limitState.webRemaining ?? maxWebPerDay;
+  const disableRunButton =
+    loading ||
+    (limitState.scoreRemaining !== undefined && limitState.scoreRemaining <= 0) ||
+    (useWeb && limitState.webRemaining !== undefined && limitState.webRemaining <= 0);
+  const publishDisabled = publishStatus === "loading";
+  const publishedUrl = publishedSlug ? buildRankingUrl(publishedSlug) : undefined;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -243,14 +274,59 @@ export default function ScoreForm() {
   async function run() {
     const payload = validate();
     if (!payload) return;
+    if (disableRunButton) {
+      setError("本日の利用上限に達しました。");
+      return;
+    }
     setLoading(true);
+    setError(undefined);
+    setPublishStatus("idle");
+    setPublishError(undefined);
+    setPublishedSlug(undefined);
     try {
       const response = await fetch("/api/projects/demo/agent/score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const json = await response.json();
+      const scoreRemainingHeader = response.headers.get("x-ratelimit-score-remaining");
+      const scoreResetHeader = response.headers.get("x-ratelimit-score-reset");
+      const webRemainingHeader = response.headers.get("x-ratelimit-web-remaining");
+      const webResetHeader = response.headers.get("x-ratelimit-web-reset");
+      setLimitState((prev) => {
+        const next = { ...prev };
+        if (scoreRemainingHeader !== null) {
+          const parsedRemaining = Number(scoreRemainingHeader);
+          if (!Number.isNaN(parsedRemaining)) next.scoreRemaining = parsedRemaining;
+        }
+        if (scoreResetHeader) {
+          next.scoreReset = scoreResetHeader;
+        }
+        if (webRemainingHeader !== null) {
+          const parsedRemaining = Number(webRemainingHeader);
+          if (!Number.isNaN(parsedRemaining)) next.webRemaining = parsedRemaining;
+        }
+        if (webResetHeader) {
+          next.webReset = webResetHeader;
+        }
+        return next;
+      });
+
+      const json = await response.json().catch(() => undefined);
+
+      if (!response.ok || !json) {
+        if (response.status === 429 && json && json.error === "limit_exceeded") {
+          if (json.kind === "web") {
+            setError("Web検索の利用上限に達しました。明日までお待ちください。");
+          } else {
+            setError("AIスコアリングの利用上限に達しました。明日までお待ちください。");
+          }
+        } else {
+          setError(json && typeof json.error === "string" ? json.error : "API呼び出しに失敗しました。");
+        }
+        return;
+      }
+
       setResult(json);
       setTab((prev) => (prev === "json" || prev === "report" ? prev : "tier"));
       if (historyEnabled) {
@@ -308,6 +384,57 @@ export default function ScoreForm() {
   function handleDeleteHistory(entryId: string) {
     const next = history.filter((entry) => entry.id !== entryId);
     persistHistory(next);
+  }
+
+  async function handlePublishSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isLoggedIn) {
+      setPublishError("公開するにはログインが必要です。");
+      return;
+    }
+    if (!result) {
+      setPublishError("公開前にAIでスコアリングを実行してください。");
+      return;
+    }
+    if (!publishTitle.trim()) {
+      setPublishError("タイトルを入力してください。");
+      return;
+    }
+    setPublishStatus("loading");
+    setPublishError(undefined);
+    try {
+      const response = await fetch("/api/rankings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: publishTitle.trim(),
+          summary: publishSummary.trim() || undefined,
+          category: publishCategory.trim() || undefined,
+          tags: publishTags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter((tag) => tag.length > 0),
+          visibility: publishVisibility,
+          items,
+          metrics,
+          result,
+          thumbUrl: undefined,
+        }),
+      });
+      const json = await response.json().catch(() => undefined);
+      if (!response.ok || !json) {
+        setPublishStatus("idle");
+        setPublishError(json && typeof json.error === "string" ? json.error : "公開処理に失敗しました。");
+        return;
+      }
+      setPublishStatus("success");
+      setPublishError(undefined);
+      setPublishedSlug(json.slug);
+    } catch (publishErr) {
+      console.error(publishErr);
+      setPublishStatus("idle");
+      setPublishError("公開処理に失敗しました。");
+    }
   }
 
   function handleDragEnd(resultDrag: DropResult) {
@@ -842,13 +969,34 @@ export default function ScoreForm() {
               <div className="text-sm font-semibold">🚀 AIでスコアリング</div>
               <div className="text-xs text-text-muted">候補 {items.length} 件 / 指標 {metrics.length} 件</div>
             </div>
-            <button
-              onClick={run}
-              disabled={loading}
-              className="rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-sky-600 hover:to-emerald-600 disabled:opacity-60"
-            >
-              {loading ? "評価を実行中…" : "AIでスコアリング"}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">
+                  AI {Math.max(0, effectiveScoreRemaining)} / {maxScorePerDay}
+                </span>
+                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">
+                  Web {Math.max(0, effectiveWebRemaining)} / {maxWebPerDay}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPublishOpen(true);
+                  setPublishError(undefined);
+                }}
+                disabled={publishDisabled}
+                className="rounded-xl border border-emerald-300 bg-white/80 px-4 py-2 text-sm font-semibold text-emerald-600 shadow-sm transition hover:bg-emerald-50 disabled:opacity-60 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200 dark:hover:bg-emerald-900/60"
+              >
+                公開設定
+              </button>
+              <button
+                onClick={run}
+                disabled={disableRunButton}
+                className="rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-sky-600 hover:to-emerald-600 disabled:opacity-60"
+              >
+                {loading ? "評価を実行中…" : "AIでスコアリング"}
+              </button>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-xs">
             {loading ? (
@@ -862,8 +1010,113 @@ export default function ScoreForm() {
               <span className="text-text-muted">設定を調整してから実行ボタンを押してください。</span>
             )}
           </div>
+          {(publishStatus === "success" && publishedUrl) || publishError ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-100">
+              {publishStatus === "success" && publishedUrl ? (
+                <span>
+                  公開が完了しました。<a className="underline" href={publishedUrl} target="_blank" rel="noreferrer">公開ページを開く</a>
+                </span>
+              ) : publishError ? (
+                <span className="text-rose-500">{publishError}</span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
+      {publishOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur">
+          <div className="w-[min(520px,92vw)] rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">ランキングを公開</h3>
+                <p className="text-sm text-text-muted">タイトルやタグを設定して公開ビューを作成します。</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPublishOpen(false)}
+                className="rounded-full border border-slate-200 px-2 py-1 text-sm text-slate-500 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                ✕
+              </button>
+            </div>
+            <form className="space-y-4" onSubmit={handlePublishSubmit}>
+              <div className="grid gap-4">
+                <label className="flex flex-col gap-2 text-sm">
+                  <span className="font-semibold">タイトル</span>
+                  <input
+                    value={publishTitle}
+                    onChange={(event) => setPublishTitle(event.target.value)}
+                    placeholder="例：2024年 上半期ノートPCランキング"
+                    className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-sm">
+                  <span className="font-semibold">カテゴリ</span>
+                  <input
+                    value={publishCategory}
+                    onChange={(event) => setPublishCategory(event.target.value)}
+                    placeholder="例：ガジェット"
+                    className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-sm">
+                  <span className="font-semibold">タグ</span>
+                  <input
+                    value={publishTags}
+                    onChange={(event) => setPublishTags(event.target.value)}
+                    placeholder="カンマ区切りで入力 (例：ノートPC, 2024)"
+                    className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-sm">
+                  <span className="font-semibold">紹介文</span>
+                  <textarea
+                    value={publishSummary}
+                    onChange={(event) => setPublishSummary(event.target.value)}
+                    rows={4}
+                    placeholder="ランキングの背景やポイントを短く紹介しましょう。"
+                    className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+                  />
+                  <span className="text-xs text-text-muted">Markdown記法に対応し、安全なHTMLに自動変換されます。</span>
+                </label>
+                <label className="flex flex-col gap-2 text-sm">
+                  <span className="font-semibold">公開範囲</span>
+                  <select
+                    value={publishVisibility}
+                    onChange={(event) => setPublishVisibility(event.target.value as PublishVisibility)}
+                    className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+                  >
+                    <option value="PUBLIC">公開（誰でも閲覧可能）</option>
+                    <option value="UNLISTED">限定公開（リンクを知っている人のみ）</option>
+                    <option value="PRIVATE">非公開（自分のみ）</option>
+                  </select>
+                </label>
+              </div>
+              <div className="space-y-2 text-xs text-text-muted">
+                {!isLoggedIn && <p className="text-rose-500">公開するにはGoogleでログインしてください。</p>}
+                {isLoggedIn && !result && <p className="text-amber-600">公開前にAIスコアリングを実行してください。</p>}
+                <p>公開後は /r/[slug] に閲覧専用ビューが生成され、いいね・ブックマーク・共有リンクが利用できます。</p>
+              </div>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPublishOpen(false)}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="submit"
+                  disabled={publishStatus === "loading" || !isLoggedIn || !result}
+                  className="rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-emerald-600 hover:to-sky-600 disabled:opacity-60"
+                >
+                  {publishStatus === "loading" ? "公開中…" : "公開する"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
