@@ -1,57 +1,94 @@
 "use client";
-import { useMemo, useRef } from "react";
-import type { AgentResult, AgentItem } from "@/lib/types";
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from "recharts";
+
+import { useMemo, useRef, type RefObject } from "react";
 import clsx from "clsx";
+import {
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
+import type { AgentItem, AgentResult, ItemInput } from "@/lib/types";
+import type { ReportSummary } from "@/lib/report";
 
 function TierBadge({ tier }: { tier?: string }) {
-  const map: Record<string, string> = { S: "bg-purple-600", A: "bg-emerald-600", B: "bg-amber-600", C: "bg-rose-600" };
+  const map: Record<string, string> = {
+    S: "bg-purple-600",
+    A: "bg-emerald-600",
+    B: "bg-amber-600",
+    C: "bg-rose-600",
+  };
   return (
-    <span className={clsx("px-2 py-0.5 rounded text-white text-xs", map[tier ?? ""] ?? "bg-slate-400")}>{tier ?? "-"}</span>
+    <span className={clsx("rounded px-2 py-0.5 text-xs text-white", map[tier ?? ""] ?? "bg-slate-400")}>
+      {tier ?? "-"}
+    </span>
   );
 }
 
-export type ViewTab = "tier" | "rank" | "cards" | "radar" | "json";
+export type ViewTab = "tier" | "rank" | "cards" | "radar" | "report" | "json";
+
+type ResultTabsProps = {
+  data?: AgentResult;
+  tab: ViewTab;
+  items?: ItemInput[];
+  reportRef?: RefObject<HTMLDivElement>;
+  summary?: ReportSummary;
+};
 
 export default function ResultTabs({
   data,
   tab,
-}: { data?: AgentResult; tab: ViewTab }) {
+  items: inputItems = [],
+  reportRef,
+  summary,
+}: ResultTabsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const items: AgentItem[] = data?.items ?? [];
   const ranked = useMemo(() => [...items].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)), [items]);
 
-  const metrics = useMemo(() => {
-    const f = items.find((i) => i.contrib && Object.keys(i.contrib).length > 0);
-    return f ? Object.keys(f.contrib!) : [];
+  const metricKeys = useMemo(() => {
+    const target = items.find((item) => item.contrib && Object.keys(item.contrib).length > 0);
+    return target ? Object.keys(target.contrib!) : [];
   }, [items]);
 
   const radarData = useMemo(
-    () => ranked.slice(0, 5).map((i) => ({ name: i.id, ...(i.contrib ?? {}), score: i.score ?? 0 })),
+    () => ranked.slice(0, 5).map((item) => ({ name: item.id, ...(item.contrib ?? {}), score: item.score ?? 0 })),
     [ranked],
   );
 
+  const nameMap = useMemo(() => new Map(inputItems.map((item) => [item.id, item.name ?? item.id])), [inputItems]);
+
   return (
-    <div ref={containerRef} className="h-full flex flex-col">
+    <div ref={containerRef} className="flex h-full flex-col gap-4">
       {tab === "tier" && (
-        <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-3">
-          {["S", "A", "B", "C"].map((t) => (
-            <div key={t} className="rounded-xl bg-white border border-slate-200 p-3">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          {["S", "A", "B", "C"].map((tier) => (
+            <div
+              key={tier}
+              className="rounded-xl border border-slate-200 bg-surface-strong p-4 shadow-sm dark:border-slate-800"
+            >
               <div className="mb-2 flex items-center justify-between">
-                <div className="font-semibold">Tier {t}</div>
-                <TierBadge tier={t} />
+                <div className="font-semibold">Tier {tier}</div>
+                <TierBadge tier={tier} />
               </div>
               <ul className="space-y-2">
                 {ranked
-                  .filter((i) => i.tier === t)
-                  .map((i) => (
-                    <li key={i.id} className="flex items-center justify-between">
-                      <span className="truncate">{i.id}</span>
-                      <span className="text-slate-600 text-sm">{((i.score ?? 0) * 100).toFixed(1)}%</span>
+                  .filter((item) => item.tier === tier)
+                  .map((item) => (
+                    <li key={item.id} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="truncate" title={nameMap.get(item.id) ?? item.id}>
+                        {nameMap.get(item.id) ?? item.id}
+                      </span>
+                      <span className="text-text-muted">{((item.score ?? 0) * 100).toFixed(1)}%</span>
                     </li>
                   ))}
-                {ranked.filter((i) => i.tier === t).length === 0 && <div className="text-slate-400 text-sm">該当なし</div>}
+                {ranked.filter((item) => item.tier === tier).length === 0 && (
+                  <li className="text-sm text-text-muted">該当なし</li>
+                )}
               </ul>
             </div>
           ))}
@@ -59,25 +96,28 @@ export default function ResultTabs({
       )}
 
       {tab === "rank" && (
-        <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+        <div className="overflow-auto rounded-xl border border-slate-200 bg-surface-strong shadow-sm dark:border-slate-800">
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 dark:bg-slate-900">
               <tr>
                 <th className="px-3 py-2 text-left">順位</th>
-                <th className="px-3 py-2 text-left">ID</th>
+                <th className="px-3 py-2 text-left">候補</th>
                 <th className="px-3 py-2 text-left">Tier</th>
                 <th className="px-3 py-2 text-right">スコア</th>
               </tr>
             </thead>
             <tbody>
-              {ranked.map((i, idx) => (
-                <tr key={i.id} className="border-t">
+              {ranked.map((item, idx) => (
+                <tr key={item.id} className="border-t">
                   <td className="px-3 py-2">{idx + 1}</td>
-                  <td className="px-3 py-2">{i.id}</td>
                   <td className="px-3 py-2">
-                    <TierBadge tier={i.tier} />
+                    <div className="font-medium">{nameMap.get(item.id) ?? item.id}</div>
+                    <div className="text-xs text-text-muted">{item.id}</div>
                   </td>
-                  <td className="px-3 py-2 text-right">{((i.score ?? 0) * 100).toFixed(2)}%</td>
+                  <td className="px-3 py-2">
+                    <TierBadge tier={item.tier} />
+                  </td>
+                  <td className="px-3 py-2 text-right">{((item.score ?? 0) * 100).toFixed(2)}%</td>
                 </tr>
               ))}
             </tbody>
@@ -86,21 +126,24 @@ export default function ResultTabs({
       )}
 
       {tab === "cards" && (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {ranked.map((i) => (
-            <div key={i.id} className="rounded-xl bg-white border border-slate-200 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-semibold">{i.id}</div>
-                <TierBadge tier={i.tier} />
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {ranked.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-xl border border-slate-200 bg-surface-strong p-4 shadow-sm dark:border-slate-800"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <div className="font-semibold">{nameMap.get(item.id) ?? item.id}</div>
+                <TierBadge tier={item.tier} />
               </div>
-              <div className="text-sm text-slate-600 mb-2">スコア: {((i.score ?? 0) * 100).toFixed(1)}%</div>
-              {i.reason && <div className="text-sm text-slate-700 line-clamp-3">{i.reason}</div>}
-              {i.sources?.length ? (
+              <div className="mb-2 text-sm text-text-muted">スコア: {((item.score ?? 0) * 100).toFixed(1)}%</div>
+              {item.reason && <div className="text-sm leading-relaxed">{item.reason}</div>}
+              {item.sources?.length ? (
                 <ul className="mt-2 space-y-1 text-xs">
-                  {i.sources.slice(0, 3).map((s) => (
-                    <li key={s.url}>
-                      <a className="text-blue-600 hover:underline" href={s.url} target="_blank">
-                        {s.title}
+                  {item.sources.slice(0, 3).map((source) => (
+                    <li key={source.url}>
+                      <a className="text-blue-600 hover:underline dark:text-sky-400" href={source.url} target="_blank">
+                        {source.title}
                       </a>
                     </li>
                   ))}
@@ -112,17 +155,17 @@ export default function ResultTabs({
       )}
 
       {tab === "radar" && (
-        <div className="h-[420px] rounded-xl bg-white border border-slate-200 p-3">
-          {metrics.length === 0 ? (
-            <div className="text-slate-500 text-sm">contrib が無いためレーダー表示できません。</div>
+        <div className="h-[420px] rounded-xl border border-slate-200 bg-surface-strong p-3 shadow-sm dark:border-slate-800">
+          {metricKeys.length === 0 ? (
+            <div className="text-sm text-text-muted">contrib が無いためレーダー表示できません。</div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radarData}>
                 <PolarGrid />
                 <PolarAngleAxis dataKey="name" />
                 <PolarRadiusAxis />
-                {metrics.map((m) => (
-                  <Radar key={m} name={m} dataKey={m} strokeOpacity={1} fillOpacity={0.25} />
+                {metricKeys.map((metric) => (
+                  <Radar key={metric} name={metric} dataKey={metric} strokeOpacity={1} fillOpacity={0.25} />
                 ))}
                 <Tooltip />
               </RadarChart>
@@ -131,8 +174,37 @@ export default function ResultTabs({
         </div>
       )}
 
+      {tab === "report" && (
+        <article
+          ref={reportRef}
+          className="rounded-xl border border-slate-200 bg-surface-strong p-6 text-sm leading-relaxed text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-100"
+        >
+          {summary ? (
+            <>
+              <h2 className="text-xl font-semibold">{summary.title}</h2>
+              <p className="text-text-muted">{summary.subtitle}</p>
+              {summary.sections.map((section) => (
+                <section key={section.title} className="mt-4 space-y-2">
+                  <h3 className="text-lg font-semibold">{section.title}</h3>
+                  <ul className="space-y-1">
+                    {section.paragraphs.map((paragraph, index) => (
+                      <li key={`${section.title}-${index}`} className="flex gap-2">
+                        <span className="mt-0.5 text-text-muted">•</span>
+                        <span>{paragraph}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </>
+          ) : (
+            <div className="text-sm text-text-muted">評価要約を表示するにはスコアリングを実行してください。</div>
+          )}
+        </article>
+      )}
+
       {tab === "json" && (
-        <pre className="h-[420px] overflow-auto rounded-xl bg-slate-900 text-slate-100 p-3 text-xs">
+        <pre className="h-[420px] overflow-auto rounded-xl border border-slate-200 bg-slate-950 p-3 text-xs text-slate-100 dark:border-slate-800">
 {JSON.stringify(data ?? {}, null, 2)}
         </pre>
       )}

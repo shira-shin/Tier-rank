@@ -10,13 +10,15 @@ export default function Segmented<T extends string>({
   className?: string;
 }) {
   return (
-    <div className={clsx("inline-flex rounded-xl border border-slate-300 bg-white p-1", className)}>
+    <div className={clsx("inline-flex rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 shadow-sm", className)}>
       {options.map(o=>(
         <button key={o.value}
           onClick={()=>onChange(o.value)}
           className={clsx(
-            "px-3 py-1.5 text-sm rounded-lg",
-            value===o.value ? "bg-slate-900 text-white" : "hover:bg-slate-100"
+            "rounded-lg px-3 py-1.5 text-sm transition",
+            value===o.value
+              ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+              : "hover:bg-slate-100 dark:hover:bg-slate-800"
           )}
         >
           {o.label}
