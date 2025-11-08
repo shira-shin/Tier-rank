@@ -86,7 +86,7 @@ export default function RankingPublicView({ data }: RankingPublicViewProps) {
 
   async function toggleReaction(kind: "like" | "bookmark") {
     try {
-      const response = await fetch(`/api/rankings/${data.id}/${kind}`, { method: "POST" });
+      const response = await fetch(`/api/rankings/${data.slug}/${kind}`, { method: "POST" });
       const json = await response.json();
       if (kind === "like") {
         setLiked(Boolean(json.liked));
