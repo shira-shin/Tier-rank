@@ -5,14 +5,17 @@ import { authOptions } from "@/lib/auth";
 
 export async function POST(
   _request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: { slug: string } },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const ranking = await prisma.ranking.findUnique({ where: { id: params.id } });
+  const ranking = await prisma.ranking.findUnique({
+    where: { slug: params.slug },
+    select: { id: true },
+  });
   if (!ranking) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
@@ -21,7 +24,7 @@ export async function POST(
     where: {
       userId_rankingId: {
         userId: session.user.id,
-        rankingId: params.id,
+        rankingId: ranking.id,
       },
     },
   });
@@ -34,11 +37,11 @@ export async function POST(
     await prisma.bookmark.create({
       data: {
         userId: session.user.id,
-        rankingId: params.id,
+        rankingId: ranking.id,
       },
     });
   }
 
-  const count = await prisma.bookmark.count({ where: { rankingId: params.id } });
+  const count = await prisma.bookmark.count({ where: { rankingId: ranking.id } });
   return NextResponse.json({ bookmarked, count });
 }
