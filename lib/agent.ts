@@ -1,15 +1,4 @@
-export type ScorePayload = {
-  items: Array<{ id: string; name: string; meta?: any }>;
-  metrics: Array<{
-    name: string;
-    type: "numeric" | "boolean" | "likert";
-    direction: "MAX" | "MIN" | "TARGET" | "LOG";
-    weight: number;
-    threshold?: number;
-    params?: any;
-  }>;
-  use_web_search?: boolean;
-};
+import type { ScorePayload } from "@/lib/types";
 
 export async function scoreWithAgent(payload: ScorePayload) {
   const schema = `Return STRICT JSON: {"items":[{"id":"string","score":0..1,"contrib":{"<metric>":0..1},"tier":"S|A|B|C","reason":"<=200 chars","sources":[{"url":"string","title":"string"}]}],"meta":{"confidence":"A|B|C"}}`;

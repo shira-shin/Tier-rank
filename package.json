@@ -13,10 +13,12 @@
     "file-saver": "^2.0.5",
     "html-to-image": "^1.11.11",
     "jspdf": "^2.5.1",
+    "mathjs": "^12.4.1",
     "next": "14.2.5",
     "next-auth": "4.24.7",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "react-beautiful-dnd": "^13.1.1",
     "recharts": "2.12.7",
     "zod": "3.23.8"
   },
