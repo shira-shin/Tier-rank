@@ -1,0 +1,87 @@
+// Prisma schema for Tier-rank social publishing features
+// Documentation: https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Visibility {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile   Profile?
+  rankings  Ranking[]
+  likes     Like[]
+  bookmarks Bookmark[]
+}
+
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  handle    String   @unique
+  display   String
+  bio       String?
+  avatarUrl String?
+  links     Json?
+}
+
+model Ranking {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+
+  title       String
+  summary     String?
+  category    String?
+  tags        String[]
+  visibility  Visibility
+  itemsJson   Json
+  metricsJson Json
+  resultJson  Json
+  thumbUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  views       Int      @default(0)
+  likes       Like[]
+  bookmarks   Bookmark[]
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  rankingId String
+  ranking   Ranking  @relation(fields: [rankingId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, rankingId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  rankingId String
+  ranking   Ranking  @relation(fields: [rankingId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, rankingId])
+}
