@@ -1,11 +1,21 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: [
-    "./app/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-  ],
-  theme: { extend: {} },
+  darkMode: "class",
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        surface: {
+          DEFAULT: "var(--surface-bg)",
+          strong: "var(--surface-strong-bg)",
+        },
+        text: {
+          muted: "var(--text-muted)",
+        },
+      },
+    },
+  },
   plugins: [],
 };
 

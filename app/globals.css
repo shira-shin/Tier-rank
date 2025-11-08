@@ -2,5 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body { height: 100%; }
-body { @apply bg-slate-50 text-slate-900; }
+:root {
+  color-scheme: light;
+  --surface-bg: #ffffff;
+  --surface-strong-bg: #f8fafc;
+  --text-muted: #64748b;
+  background-color: #f1f5f9;
+}
+
+.dark {
+  color-scheme: dark;
+  --surface-bg: #0f172a;
+  --surface-strong-bg: #1e293b;
+  --text-muted: #94a3b8;
+  background-color: #020617;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100;
+}
+
+a {
+  @apply text-blue-600 dark:text-sky-400;
+}
