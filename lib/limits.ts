@@ -37,9 +37,16 @@ export async function applyLimit(identifier: string, options: {
 }): Promise<LimitResult> {
   const limiter = options.type === "score" ? (options.loggedIn ? scoreLimit : guestScoreLimit) : options.loggedIn ? webLimit : guestWebLimit;
   const result = await limiter.limit(identifier);
+  // @upstash/ratelimit の reset は UNIX 秒(number)が返る。
+  // UI 側で扱いやすいよう Date に正規化する。
+  const resetAt =
+    typeof result.reset === "number"
+      ? new Date(result.reset * 1000)
+      : (result.reset as Date);
+
   return {
     remaining: result.remaining,
-    reset: result.reset,
+    reset: resetAt,
     success: result.success,
   };
 }
