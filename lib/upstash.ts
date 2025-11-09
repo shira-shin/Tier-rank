@@ -1,5 +1,20 @@
 import { Redis } from "@upstash/redis";
 
-export const redis = Redis.fromEnv();
+let redisInstance: Redis | null = null;
 
-export default redis;
+export function getRedis(): Redis | null {
+  if (redisInstance) {
+    return redisInstance;
+  }
+
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) {
+    return null;
+  }
+
+  redisInstance = new Redis({ url, token });
+  return redisInstance;
+}
+
+export type { Redis };

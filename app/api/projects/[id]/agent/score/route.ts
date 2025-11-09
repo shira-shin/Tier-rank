@@ -1,10 +1,14 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { scoreWithAgent } from "@/lib/agent";
 import { applyFormulaMetrics } from "@/lib/score";
 import type { ScorePayload } from "@/lib/types";
-import { applyLimit } from "@/lib/limits";
+import { checkScoreLimit, checkWebLimit } from "@/lib/limits";
 import { authOptions } from "@/lib/auth";
 
 const Body = z.object({
@@ -49,11 +53,9 @@ export async function POST(req: NextRequest) {
 
   const session = await getServerSession(authOptions);
   const identifier = session?.user?.id ?? resolveIdentifier(req);
+  const loggedIn = Boolean(session?.user?.id);
 
-  const scoreLimitResult = await applyLimit(identifier, {
-    loggedIn: Boolean(session?.user?.id),
-    type: "score",
-  });
+  const scoreLimitResult = await checkScoreLimit(identifier, { loggedIn });
 
   if (!scoreLimitResult.success) {
     return NextResponse.json(
@@ -70,10 +72,7 @@ export async function POST(req: NextRequest) {
 
   let webLimitResult = undefined;
   if (parsed.use_web_search) {
-    webLimitResult = await applyLimit(identifier, {
-      loggedIn: Boolean(session?.user?.id),
-      type: "web",
-    });
+    webLimitResult = await checkWebLimit(identifier, { loggedIn });
     if (!webLimitResult.success) {
       return NextResponse.json(
         { error: "limit_exceeded", resetAt: webLimitResult.reset.toISOString(), kind: "web" },
