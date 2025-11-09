@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
@@ -38,7 +39,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "handle_taken" }, { status: 409 });
   }
 
-  const links = parsed.data.links && Object.keys(parsed.data.links).length > 0 ? parsed.data.links : null;
+  const rawLinks =
+    parsed.data.links && Object.keys(parsed.data.links).length > 0
+      ? parsed.data.links
+      : null;
+
+  // links は JSON 型。undefined や null の場合は Prisma.DbNull（DBのNULL）にする。
+  // 「JSON の null」を入れたい場合は Prisma.JsonNull を使う。
+  const links =
+    rawLinks === undefined || rawLinks === null
+      ? Prisma.DbNull
+      : (rawLinks as Prisma.InputJsonValue);
 
   const profile = await prisma.profile.upsert({
     where: { userId: session.user.id },
@@ -47,7 +58,7 @@ export async function POST(request: Request) {
       display: parsed.data.display,
       bio: parsed.data.bio ?? null,
       avatarUrl: parsed.data.avatarUrl ?? null,
-      links,
+      links, // ← 上で Prisma.DbNull / JsonNull に正規化済み
     },
     create: {
       userId: session.user.id,
