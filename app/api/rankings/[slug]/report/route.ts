@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { redis } from "@/lib/upstash";
+import { getRedis } from "@/lib/upstash";
 
 const Body = z.object({
   reason: z.string().min(1).max(500),
@@ -34,6 +34,11 @@ export async function POST(
     reportedBy: session?.user?.id ?? null,
     reportedAt: new Date().toISOString(),
   };
+
+  const redis = getRedis();
+  if (!redis) {
+    return NextResponse.json({ error: "service_unavailable" }, { status: 503 });
+  }
 
   await redis.lpush("reports:rankings", JSON.stringify(entry));
   return NextResponse.json({ ok: true });
