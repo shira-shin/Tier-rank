@@ -1,9 +1,6 @@
-// app/api/og/[slug]/route.tsx
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const contentType = "image/png";
-export const size = { width: 1200, height: 630 };
 
 type Params = { params: { slug: string } };
 
@@ -33,6 +30,6 @@ export async function GET(req: Request, { params }: Params) {
         </div>
       </div>
     ),
-    size
+    { width: 1200, height: 630 }
   );
 }
