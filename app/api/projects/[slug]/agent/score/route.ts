@@ -62,11 +62,13 @@ type ScoreResponse = z.infer<typeof scoreResponseSchema>;
 
 type RouteParams = { params: { slug: string } };
 
-function clampScore(value: number | undefined): number {
-  if (!Number.isFinite(value)) return 0;
+function clampScore(value?: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 0;
+  }
   if (value < 0) return 0;
   if (value > 1) return 1;
-  return Number(value);
+  return value;
 }
 
 function buildPrompt(projectName: string, projectDescription: string | null, body: ScoreRequest) {
