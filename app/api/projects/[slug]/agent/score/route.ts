@@ -5,7 +5,9 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import type { ScoreRequest as ScoreRequestPayload, ScoreResponse as ScoreResponsePayload } from "@/lib/types";
+import type { ScoreRequest as ScoreRequestPayload, ScoreResponse as ScoreResponsePayload, MetricType } from "@/lib/types";
+
+const metricTypeValues = ["numeric", "likert", "boolean", "formula"] as const satisfies readonly MetricType[];
 
 const candidateSchema = z.object({
   id: z.string().min(1),
@@ -17,8 +19,8 @@ const criterionSchema = z.object({
   key: z.string().min(1),
   label: z.string().min(1),
   direction: z.enum(["up", "down"]),
-  weight: z.number().min(0),
-  type: z.string().optional(),
+  weight: z.number().gt(0),
+  type: z.enum(metricTypeValues),
   note: z.string().optional(),
 });
 
@@ -59,6 +61,14 @@ const scoreResponseSchema = z.object({
 
 type ScoreRequest = z.infer<typeof scoreRequestSchema>;
 type ScoreResponse = z.infer<typeof scoreResponseSchema>;
+
+type EnsureTrue<T extends true> = T;
+type _EnsureRequestCompatible = EnsureTrue<
+  ScoreRequest extends ScoreRequestPayload ? (ScoreRequestPayload extends ScoreRequest ? true : false) : false
+>;
+type _EnsureResponseCompatible = EnsureTrue<
+  ScoreResponse extends ScoreResponsePayload ? (ScoreResponsePayload extends ScoreResponse ? true : false) : false
+>;
 
 type RouteParams = { params: { slug: string } };
 
@@ -251,6 +261,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     const normalised = normaliseResponse(body, structured);
 
+    // Successful payload echoes the expected { tiers: TierResult[], scores: ScoreEntry[] } contract.
     return NextResponse.json(normalised);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);

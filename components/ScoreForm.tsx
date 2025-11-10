@@ -7,7 +7,15 @@ import { DragDropContext, Draggable, Droppable, type DropResult } from "react-be
 import clsx from "clsx";
 import Segmented from "@/components/Segmented";
 import ResultTabs, { type ViewTab } from "@/components/ResultTabs";
-import type { AgentResult, ItemInput, MetricInput, ScoreRequest, ScoreResponse } from "@/lib/types";
+import type {
+  AgentResult,
+  Criterion,
+  ItemInput,
+  MetricInput,
+  MetricType,
+  ScoreRequest,
+  ScoreResponse,
+} from "@/lib/types";
 import {
   exportCSV,
   exportJSON,
@@ -33,6 +41,7 @@ const SIMPLE_METRICS: MetricInput[] = [
 ];
 
 const DEFAULT_TIER_LABELS = ["S", "A", "B", "C", "D"];
+const METRIC_TYPES: MetricType[] = ["numeric", "likert", "boolean", "formula"];
 
 const NAMING_PRESET: { items: ItemInput[]; metrics: MetricInput[] } = {
   items: [
@@ -108,6 +117,21 @@ function convertScoreResponseToAgentResult(response: ScoreResponse | undefined):
       reason: entry.reasons,
     })),
   };
+}
+
+function normalizeMetricType(value: string | undefined | null): MetricType {
+  if (value && METRIC_TYPES.includes(value as MetricType)) {
+    return value as MetricType;
+  }
+  return "numeric";
+}
+
+type AgentResultItem = NonNullable<AgentResult["items"]>[number];
+
+function isScoreResponseEntry(
+  entry: ScoreResponse["scores"][number] | AgentResultItem,
+): entry is ScoreResponse["scores"][number] {
+  return "name" in entry;
 }
 
 export default function ScoreForm({ projectSlug: initialProjectSlug }: ScoreFormProps = {}) {
@@ -328,23 +352,29 @@ export default function ScoreForm({ projectSlug: initialProjectSlug }: ScoreForm
       description: typeof item.meta?.note === "string" ? item.meta.note : undefined,
     }));
 
-    const criteria = cleanedMetrics.map((metric, index) => ({
-      key: metric.name || `metric-${index + 1}`,
-      label: metric.name,
-      direction: metric.direction === "MIN" ? "down" : "up",
-      weight: Number(metric.weight ?? 1),
-      type: metric.type,
-      note: metric.description,
-    }));
+    const normalizedCriteria: Criterion[] = cleanedMetrics.map((metric, index) => {
+      const parsedWeight = Number(metric.weight ?? 1);
+      const weight = Number.isFinite(parsedWeight) && parsedWeight > 0 ? parsedWeight : 1;
+      return {
+        key: metric.name || `metric-${index + 1}`,
+        label: metric.name,
+        direction: metric.direction === "MIN" ? "down" : "up",
+        weight,
+        type: normalizeMetricType(metric.type),
+        note: metric.description,
+      };
+    });
+
+    const request: ScoreRequest = {
+      candidates,
+      criteria: normalizedCriteria,
+      options: {
+        tiers: DEFAULT_TIER_LABELS,
+      },
+    };
 
     return {
-      request: {
-        candidates,
-        criteria,
-        options: {
-          tiers: DEFAULT_TIER_LABELS,
-        },
-      },
+      request,
       cleanedItems,
       cleanedMetrics,
     };
@@ -378,6 +408,7 @@ export default function ScoreForm({ projectSlug: initialProjectSlug }: ScoreForm
       const response = await fetch(`/api/projects/${encodeURIComponent(activeSlug)}/agent/score`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // ScoreRequest payload expects candidates, criteria, and optional tier labels.
         body: JSON.stringify(payload),
       });
       const scoreRemainingHeader = response.headers.get("x-ratelimit-score-remaining");
@@ -435,6 +466,7 @@ export default function ScoreForm({ projectSlug: initialProjectSlug }: ScoreForm
         return;
       }
 
+      // Successful responses follow ScoreResponse: { tiers: TierResult[], scores: ScoreEntry[] }.
       const structured = json as ScoreResponse;
       const converted = convertScoreResponseToAgentResult(structured);
       setScoreResponse(structured);
@@ -500,13 +532,25 @@ export default function ScoreForm({ projectSlug: initialProjectSlug }: ScoreForm
   function exportAsCSV() {
     const entries = scoreResponse?.scores ?? result?.items;
     if (!entries || entries.length === 0) return;
-    const rows = entries.map((item) => ({
-      id: item.id,
-      name: "name" in item ? item.name : items.find((candidate) => candidate.id === item.id)?.name ?? item.id,
-      tier: "tier" in item ? item.tier : item.tier,
-      score: item.score,
-      reason: "reasons" in item ? item.reasons : item.reason,
-    }));
+    const rows = (entries as (ScoreResponse["scores"][number] | AgentResultItem)[]).map((item) => {
+      if (isScoreResponseEntry(item)) {
+        return {
+          id: item.id,
+          name: item.name,
+          tier: item.tier,
+          score: item.score,
+          reason: item.reasons,
+        };
+      }
+      const fallbackName = items.find((candidate) => candidate.id === item.id)?.name ?? item.id;
+      return {
+        id: item.id,
+        name: fallbackName,
+        tier: item.tier ?? "",
+        score: item.score ?? 0,
+        reason: item.reason,
+      };
+    });
     exportCSV(rows, "tier-rank.csv");
   }
 
