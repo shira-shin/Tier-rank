@@ -71,6 +71,10 @@ type HistoryEntry = {
   summaryText?: string;
 };
 
+type ScoreFormProps = {
+  projectSlug?: string;
+};
+
 function createHistoryId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -106,10 +110,11 @@ function convertScoreResponseToAgentResult(response: ScoreResponse | undefined):
   };
 }
 
-export default function ScoreForm() {
+export default function ScoreForm({ projectSlug: initialProjectSlug }: ScoreFormProps = {}) {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
-  const projectSlug = searchParams.get("project")?.trim() || "demo";
+  const searchProjectSlug = searchParams.get("project")?.trim() || undefined;
+  const resolvedProjectSlug = searchProjectSlug ?? initialProjectSlug;
   const [items, setItems] = useState<ItemInput[]>(() => DEFAULT_ITEMS.map((item) => ({ ...item })));
   const [metrics, setMetrics] = useState<MetricInput[]>(() => SIMPLE_METRICS.map((metric) => ({ ...metric })));
   const [useWeb, setUseWeb] = useState(false);
@@ -151,6 +156,8 @@ export default function ScoreForm() {
     loading ||
     (limitState.scoreRemaining !== undefined && limitState.scoreRemaining <= 0) ||
     (useWeb && limitState.webRemaining !== undefined && limitState.webRemaining <= 0);
+  const projectSlugMissing = !resolvedProjectSlug;
+  const disableRun = disableRunButton || projectSlugMissing;
   const publishDisabled = publishStatus === "loading";
   const publishedUrl = publishedSlug ? buildRankingUrl(publishedSlug) : undefined;
 
@@ -347,7 +354,11 @@ export default function ScoreForm() {
     const validation = validate();
     if (!validation) return;
     const { request: payload, cleanedItems, cleanedMetrics } = validation;
-    if (disableRunButton) {
+    if (disableRun) {
+      if (projectSlugMissing) {
+        setError("AIプロジェクトが設定されていません。管理者にお問い合わせください。");
+        return;
+      }
       setError("本日の利用上限に達しました。");
       return;
     }
@@ -357,8 +368,14 @@ export default function ScoreForm() {
     setPublishError(undefined);
     setPublishedSlug(undefined);
     try {
-      const resolvedSlug = projectSlug || "demo";
-      const response = await fetch(`/api/projects/${encodeURIComponent(resolvedSlug)}/agent/score`, {
+      const activeSlug = (searchParams.get("project")?.trim() || undefined) ?? initialProjectSlug;
+      if (!activeSlug) {
+        setError("AIプロジェクトが設定されていません。管理者にお問い合わせください。");
+        setScoreResponse(undefined);
+        setResult(undefined);
+        return;
+      }
+      const response = await fetch(`/api/projects/${encodeURIComponent(activeSlug)}/agent/score`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -461,16 +478,18 @@ export default function ScoreForm() {
       UPSTREAM_ERROR: "AIサービス側でエラーが発生しました。しばらく待ってから再試行してください。",
       EMPTY_RESPONSE: "AIが結果を返しませんでした。入力内容を調整して再実行してください。",
       PARSE_ERROR: "AIのレスポンスを解析できませんでした。少し時間をおいて再試行してください。",
-      "Candidates and criteria are required.": "候補と評価軸を入力してください。",
+      "Candidates and criteria are required": "候補と評価軸を入力してください。",
       "Invalid request payload": "候補と評価軸の入力内容を確認してください。",
       "Invalid JSON body": "リクエスト形式が正しくありません。ページを再読み込みして再試行してください。",
       "OPENAI_API_KEY is not set": "環境変数 OPENAI_API_KEY を設定してください。",
-      "Project slug is required.": "プロジェクトIDを指定してください。",
+      "Project slug is required": "プロジェクトIDを指定してください。",
       "Project not found": "指定されたプロジェクトが見つかりません。",
       "Failed to call OpenAI": "AIサービスへの接続に失敗しました。時間をおいて再試行してください。",
       "OpenAI response error": "AIサービス側でエラーが発生しました。しばらく待ってから再試行してください。",
       "Failed to parse OpenAI response": "AIのレスポンスを解析できませんでした。少し時間をおいて再試行してください。",
       "Empty response from OpenAI": "AIが結果を返しませんでした。入力内容を調整して再実行してください。",
+      "Internal Server Error": "AIサービス内で予期せぬエラーが発生しました。時間をおいて再試行してください。",
+      "AIプロジェクトが設定されていません。管理者にお問い合わせください。": "AIプロジェクトが設定されていません。管理者にお問い合わせください。",
     };
     if (code.startsWith("Project not found")) {
       return "指定されたプロジェクトが見つかりません。URLをご確認ください。";
@@ -1199,7 +1218,7 @@ export default function ScoreForm() {
               </button>
               <button
                 onClick={run}
-                disabled={disableRunButton}
+                disabled={disableRun}
                 className="rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-sky-600 hover:to-emerald-600 disabled:opacity-60"
               >
                 {loading ? "AIが評価しています…" : "AIに評価を依頼する"}
@@ -1207,7 +1226,9 @@ export default function ScoreForm() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-xs">
-            {loading ? (
+            {projectSlugMissing && !loading && !error ? (
+              <span className="text-rose-500">AIプロジェクトが設定されていません。管理者にお問い合わせください。</span>
+            ) : loading ? (
               <span className="flex items-center gap-2 text-sky-600">
                 <span className="h-2 w-2 animate-ping rounded-full bg-sky-500" />
                 処理中… AIの結果を待機しています。

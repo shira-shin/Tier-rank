@@ -1,11 +1,15 @@
-"use client";
-import { useSession } from "next-auth/react";
+import { getServerSession } from "next-auth";
 import Link from "next/link";
 import NavBar from "@/components/NavBar";
 import ScoreForm from "@/components/ScoreForm";
+import { authOptions } from "@/lib/auth";
+import { getDefaultProject } from "@/lib/project";
 
-export default function Page() {
-  const { data: session, status } = useSession();
+export default async function Page() {
+  const [session, defaultProject] = await Promise.all([
+    getServerSession(authOptions),
+    getDefaultProject(),
+  ]);
   return (
     <div className="min-h-screen">
       <NavBar />
@@ -30,12 +34,12 @@ export default function Page() {
             </Link>
           </div>
         </section>
-        {!session && status!=="loading" && (
+        {!session && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 text-amber-800 px-3 py-2 text-sm">
             ログインしていません。Googleでサインインすると、保存や共有などの機能を有効化できます。
           </div>
         )}
-        <ScoreForm />
+        <ScoreForm projectSlug={defaultProject?.slug} />
       </main>
     </div>
   );
