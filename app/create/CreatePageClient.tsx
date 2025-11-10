@@ -1,17 +1,11 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import ScoreForm from "@/components/ScoreForm";
+import { ScoreForm } from "@/components/ScoreForm";
 
-type CreatePageClientProps = {
-  projectSlug?: string;
-};
-
-export function CreatePageClient({ projectSlug }: CreatePageClientProps) {
+export function CreatePageClient() {
   const searchParams = useSearchParams();
-  const searchProjectSlug = searchParams.get("project")?.trim() || undefined;
+  const initialProjectSlug = searchParams.get("project")?.trim() || "demo";
 
-  return (
-    <ScoreForm projectSlug={projectSlug} searchProjectSlug={searchProjectSlug} />
-  );
+  return <ScoreForm initialProjectSlug={initialProjectSlug} />;
 }

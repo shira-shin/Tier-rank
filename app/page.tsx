@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import Link from "next/link";
 import NavBar from "@/components/NavBar";
-import ScoreForm from "@/components/ScoreForm";
+import { ScoreForm } from "@/components/ScoreForm";
 import { authOptions } from "@/lib/auth";
 import { getDefaultProject } from "@/lib/project";
 
@@ -39,7 +39,7 @@ export default async function Page() {
             ログインしていません。Googleでサインインすると、保存や共有などの機能を有効化できます。
           </div>
         )}
-        <ScoreForm projectSlug={defaultProject?.slug} />
+        <ScoreForm initialProjectSlug={defaultProject?.slug} />
       </main>
     </div>
   );
