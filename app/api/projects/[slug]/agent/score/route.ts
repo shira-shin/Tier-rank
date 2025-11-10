@@ -167,86 +167,92 @@ function normaliseResponse(body: ScoreRequest, payload: ScoreResponse): ScoreRes
 }
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
-  const slug = params.slug;
-
-  if (!slug) {
-    return NextResponse.json({ error: "Project slug is required." }, { status: 400 });
-  }
-
-  if (!process.env.OPENAI_API_KEY) {
-    return NextResponse.json({ error: "OPENAI_API_KEY is not set" }, { status: 500 });
-  }
-
-  const project = await prisma.project.findUnique({ where: { slug } });
-  if (!project) {
-    return NextResponse.json({ error: `Project not found for slug: ${slug}` }, { status: 404 });
-  }
-
-  let body: ScoreRequest;
   try {
-    const json = await req.json();
-    body = scoreRequestSchema.parse(json);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid request payload", issues: error.issues }, { status: 400 });
+    const slug = params.slug;
+
+    if (!slug) {
+      return NextResponse.json({ error: "Project slug is required" }, { status: 400 });
     }
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
 
-  if (!body.candidates?.length || !body.criteria?.length) {
-    return NextResponse.json({ error: "Candidates and criteria are required." }, { status: 400 });
-  }
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: "OPENAI_API_KEY is not set" }, { status: 500 });
+    }
 
-  const messages = buildPrompt(project.name, project.description, body);
+    const project = await prisma.project.findUnique({ where: { slug } });
+    if (!project) {
+      return NextResponse.json({ error: `Project not found for slug: ${slug}` }, { status: 404 });
+    }
 
-  let response: Response;
-  try {
-    response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4.1-mini",
-        modalities: ["text"],
-        input: messages,
-      }),
-    });
+    let body: ScoreRequest;
+    try {
+      const json = await req.json();
+      body = scoreRequestSchema.parse(json);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ error: "Invalid request payload", issues: error.issues }, { status: 400 });
+      }
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    if (!body.candidates?.length || !body.criteria?.length) {
+      return NextResponse.json({ error: "Candidates and criteria are required" }, { status: 400 });
+    }
+
+    const messages = buildPrompt(project.name, project.description, body);
+
+    let response: Response;
+    try {
+      response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4.1-mini",
+          modalities: ["text"],
+          input: messages,
+        }),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return NextResponse.json({ error: "Failed to call OpenAI", details: message }, { status: 500 });
+    }
+
+    const rawText = await response.text();
+
+    if (!response.ok) {
+      return NextResponse.json({ error: "OpenAI response error", details: rawText || response.statusText }, { status: 500 });
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = rawText ? JSON.parse(rawText) : undefined;
+    } catch {
+      parsed = undefined;
+    }
+
+    const textOutput =
+      (parsed as any)?.output?.[0]?.content?.[0]?.text ?? (parsed as any)?.output_text ?? (typeof rawText === "string" ? rawText : "");
+
+    if (!textOutput) {
+      return NextResponse.json({ error: "Empty response from OpenAI" }, { status: 500 });
+    }
+
+    let structured: ScoreResponse;
+    try {
+      const json = JSON.parse(textOutput);
+      structured = scoreResponseSchema.parse(json);
+    } catch (error) {
+      return NextResponse.json({ error: "Failed to parse OpenAI response", details: textOutput, issues: error }, { status: 500 });
+    }
+
+    const normalised = normaliseResponse(body, structured);
+
+    return NextResponse.json(normalised);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: "Failed to call OpenAI", details: message }, { status: 500 });
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("/api/projects/[slug]/agent/score error", error);
+    return NextResponse.json({ error: "Internal Server Error", detail }, { status: 500 });
   }
-
-  const rawText = await response.text();
-
-  if (!response.ok) {
-    return NextResponse.json({ error: "OpenAI response error", details: rawText || response.statusText }, { status: 500 });
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = rawText ? JSON.parse(rawText) : undefined;
-  } catch {
-    parsed = undefined;
-  }
-
-  const textOutput =
-    (parsed as any)?.output?.[0]?.content?.[0]?.text ?? (parsed as any)?.output_text ?? (typeof rawText === "string" ? rawText : "");
-
-  if (!textOutput) {
-    return NextResponse.json({ error: "Empty response from OpenAI" }, { status: 500 });
-  }
-
-  let structured: ScoreResponse;
-  try {
-    const json = JSON.parse(textOutput);
-    structured = scoreResponseSchema.parse(json);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to parse OpenAI response", details: textOutput, issues: error }, { status: 500 });
-  }
-
-  const normalised = normaliseResponse(body, structured);
-
-  return NextResponse.json(normalised);
 }
