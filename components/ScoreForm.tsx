@@ -2,11 +2,12 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { DragDropContext, Draggable, Droppable, type DropResult } from "react-beautiful-dnd";
 import clsx from "clsx";
 import Segmented from "@/components/Segmented";
 import ResultTabs, { type ViewTab } from "@/components/ResultTabs";
-import type { AgentResult, ItemInput, MetricInput, ScorePayload } from "@/lib/types";
+import type { AgentResult, ItemInput, MetricInput, ScoreRequest, ScoreResponse } from "@/lib/types";
 import {
   exportCSV,
   exportJSON,
@@ -30,6 +31,8 @@ const DEFAULT_ITEMS: ItemInput[] = [
 const SIMPLE_METRICS: MetricInput[] = [
   { name: "総合", type: "numeric", direction: "MAX", weight: 1, normalize: "none" },
 ];
+
+const DEFAULT_TIER_LABELS = ["S", "A", "B", "C", "D"];
 
 const NAMING_PRESET: { items: ItemInput[]; metrics: MetricInput[] } = {
   items: [
@@ -60,8 +63,11 @@ type HistoryEntry = {
   id: string;
   title: string;
   createdAt: number;
-  payload: ScorePayload;
+  payload: ScoreRequest;
+  itemsSnapshot?: ItemInput[];
+  metricsSnapshot?: MetricInput[];
   result?: AgentResult;
+  scoreResponse?: ScoreResponse;
   summaryText?: string;
 };
 
@@ -70,25 +76,6 @@ function createHistoryId() {
     return crypto.randomUUID();
   }
   return `history-${Date.now()}`;
-}
-
-function slugify(input: string) {
-  return input
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-}
-
-function createRequestSlug(source?: string) {
-  const normalized = source ? slugify(source) : "";
-  if (normalized) return normalized;
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `run-${crypto.randomUUID()}`;
-  }
-  return `run-${Date.now()}`;
 }
 
 function reorderList<T>(list: T[], startIndex: number, endIndex: number): T[] {
@@ -107,8 +94,22 @@ function buildDummyScope(names: string[]) {
   return scope;
 }
 
+function convertScoreResponseToAgentResult(response: ScoreResponse | undefined): AgentResult | undefined {
+  if (!response) return undefined;
+  return {
+    items: response.scores.map((entry) => ({
+      id: entry.id,
+      score: entry.score,
+      tier: entry.tier,
+      reason: entry.reasons,
+    })),
+  };
+}
+
 export default function ScoreForm() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const projectSlug = searchParams.get("project")?.trim() || "demo";
   const [items, setItems] = useState<ItemInput[]>(() => DEFAULT_ITEMS.map((item) => ({ ...item })));
   const [metrics, setMetrics] = useState<MetricInput[]>(() => SIMPLE_METRICS.map((metric) => ({ ...metric })));
   const [useWeb, setUseWeb] = useState(false);
@@ -118,6 +119,7 @@ export default function ScoreForm() {
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AgentResult | undefined>();
+  const [scoreResponse, setScoreResponse] = useState<ScoreResponse | undefined>();
   const [tab, setTab] = useState<ViewTab>("tier");
   const [collapsedItems, setCollapsedItems] = useState<Record<string, boolean>>({});
   const [collapsedMetrics, setCollapsedMetrics] = useState<Record<string, boolean>>({});
@@ -240,7 +242,13 @@ export default function ScoreForm() {
     setMetrics(COMPANY_PRESET.metrics.map((metric) => ({ ...metric })));
   }
 
-  function validate(): ScorePayload | undefined {
+  function validate():
+    | {
+        request: ScoreRequest;
+        cleanedItems: ItemInput[];
+        cleanedMetrics: MetricInput[];
+      }
+    | undefined {
     if (items.length === 0) {
       setError("候補を1件以上登録してください。");
       return undefined;
@@ -307,16 +315,38 @@ export default function ScoreForm() {
     setError(undefined);
     setItems(cleanedItems.map((item) => ({ ...item })));
     setMetrics(cleanedMetrics.map((metric) => ({ ...metric })));
+    const candidates = cleanedItems.map((item) => ({
+      id: item.id,
+      name: item.name,
+      description: typeof item.meta?.note === "string" ? item.meta.note : undefined,
+    }));
+
+    const criteria = cleanedMetrics.map((metric, index) => ({
+      key: metric.name || `metric-${index + 1}`,
+      label: metric.name,
+      direction: metric.direction === "MIN" ? "down" : "up",
+      weight: Number(metric.weight ?? 1),
+      type: metric.type,
+      note: metric.description,
+    }));
+
     return {
-      items: cleanedItems,
-      metrics: cleanedMetrics,
-      use_web_search: useWeb,
+      request: {
+        candidates,
+        criteria,
+        options: {
+          tiers: DEFAULT_TIER_LABELS,
+        },
+      },
+      cleanedItems,
+      cleanedMetrics,
     };
   }
 
   async function run() {
-    const payload = validate();
-    if (!payload) return;
+    const validation = validate();
+    if (!validation) return;
+    const { request: payload, cleanedItems, cleanedMetrics } = validation;
     if (disableRunButton) {
       setError("本日の利用上限に達しました。");
       return;
@@ -327,9 +357,8 @@ export default function ScoreForm() {
     setPublishError(undefined);
     setPublishedSlug(undefined);
     try {
-      const slugSource = historyTitle.trim() || payload.items.map((item) => item.id).join("-");
-      const requestSlug = createRequestSlug(slugSource);
-      const response = await fetch(`/api/projects/${encodeURIComponent(requestSlug)}/agent/score`, {
+      const resolvedSlug = projectSlug || "demo";
+      const response = await fetch(`/api/projects/${encodeURIComponent(resolvedSlug)}/agent/score`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -368,25 +397,31 @@ export default function ScoreForm() {
           }
         } else {
           const code = json && typeof json.error === "string" ? json.error : undefined;
-          setError(resolveAgentErrorMessage(code));
+          setError(resolveAgentErrorMessage(code, response.status));
         }
         setResult(undefined);
+        setScoreResponse(undefined);
         return;
       }
 
       if (json && typeof json === "object" && "error" in json && typeof json.error === "string") {
-        setError(resolveAgentErrorMessage(json.error));
+        setError(resolveAgentErrorMessage(json.error, response.status));
         setResult(undefined);
+        setScoreResponse(undefined);
         return;
       }
 
-      if (!json || !Array.isArray((json as AgentResult).items) || ((json as AgentResult).items?.length ?? 0) === 0) {
+      if (!json || !Array.isArray((json as ScoreResponse).tiers) || !Array.isArray((json as ScoreResponse).scores)) {
         setError("AIがスコアを返しませんでした。入力内容を見直して再度お試しください。");
         setResult(undefined);
+        setScoreResponse(undefined);
         return;
       }
 
-      setResult(json as AgentResult);
+      const structured = json as ScoreResponse;
+      const converted = convertScoreResponseToAgentResult(structured);
+      setScoreResponse(structured);
+      setResult(converted);
       setTab((prev) => (prev === "json" || prev === "report" ? prev : "tier"));
       if (historyEnabled) {
         const entry: HistoryEntry = {
@@ -394,20 +429,30 @@ export default function ScoreForm() {
           title: historyTitle.trim() || `保存済み ${new Date().toLocaleString()}`,
           createdAt: Date.now(),
           payload,
-          result: json,
-          summaryText: buildReportSummary(json, payload.items, payload.metrics)?.plainText,
+          itemsSnapshot: cleanedItems,
+          metricsSnapshot: cleanedMetrics,
+          result: converted,
+          scoreResponse: structured,
+          summaryText: buildReportSummary(converted, cleanedItems, cleanedMetrics)?.plainText,
         };
         persistHistory([entry, ...history]);
       }
     } catch {
       setError("API呼び出しに失敗しました。");
+      setScoreResponse(undefined);
+      setResult(undefined);
     } finally {
       setLoading(false);
     }
   }
 
-  function resolveAgentErrorMessage(code?: string) {
-    if (!code) return "AIがスコアを返しませんでした。時間をおいて再試行してください。";
+  function resolveAgentErrorMessage(code?: string, status?: number) {
+    if (!code) {
+      if (status === 404) {
+        return "指定されたプロジェクトが見つかりません。URLをご確認ください。";
+      }
+      return "AIがスコアを返しませんでした。時間をおいて再試行してください。";
+    }
     const messages: Record<string, string> = {
       invalid_request: "候補と評価指標の入力内容を確認してください。",
       invalid_json: "リクエスト形式が正しくありません。ページを再読み込みして再試行してください。",
@@ -416,17 +461,32 @@ export default function ScoreForm() {
       UPSTREAM_ERROR: "AIサービス側でエラーが発生しました。しばらく待ってから再試行してください。",
       EMPTY_RESPONSE: "AIが結果を返しませんでした。入力内容を調整して再実行してください。",
       PARSE_ERROR: "AIのレスポンスを解析できませんでした。少し時間をおいて再試行してください。",
+      "Candidates and criteria are required.": "候補と評価軸を入力してください。",
+      "Invalid request payload": "候補と評価軸の入力内容を確認してください。",
+      "Invalid JSON body": "リクエスト形式が正しくありません。ページを再読み込みして再試行してください。",
+      "OPENAI_API_KEY is not set": "環境変数 OPENAI_API_KEY を設定してください。",
+      "Project slug is required.": "プロジェクトIDを指定してください。",
+      "Project not found": "指定されたプロジェクトが見つかりません。",
+      "Failed to call OpenAI": "AIサービスへの接続に失敗しました。時間をおいて再試行してください。",
+      "OpenAI response error": "AIサービス側でエラーが発生しました。しばらく待ってから再試行してください。",
+      "Failed to parse OpenAI response": "AIのレスポンスを解析できませんでした。少し時間をおいて再試行してください。",
+      "Empty response from OpenAI": "AIが結果を返しませんでした。入力内容を調整して再実行してください。",
     };
+    if (code.startsWith("Project not found")) {
+      return "指定されたプロジェクトが見つかりません。URLをご確認ください。";
+    }
     return messages[code] ?? code;
   }
 
   function exportAsCSV() {
-    if (!result?.items?.length) return;
-    const rows = result.items.map((item) => ({
+    const entries = scoreResponse?.scores ?? result?.items;
+    if (!entries || entries.length === 0) return;
+    const rows = entries.map((item) => ({
       id: item.id,
-      tier: item.tier,
+      name: "name" in item ? item.name : items.find((candidate) => candidate.id === item.id)?.name ?? item.id,
+      tier: "tier" in item ? item.tier : item.tier,
       score: item.score,
-      reason: item.reason,
+      reason: "reasons" in item ? item.reasons : item.reason,
     }));
     exportCSV(rows, "tier-rank.csv");
   }
@@ -447,10 +507,18 @@ export default function ScoreForm() {
   }
 
   function handleLoadHistory(entry: HistoryEntry) {
-    setItems(entry.payload.items.map((item) => ({ ...item })));
-    setMetrics(entry.payload.metrics.map((metric) => ({ ...metric })));
-    setUseWeb(Boolean(entry.payload.use_web_search));
-    setResult(entry.result);
+    const fallbackItems = (entry as any).payload?.items ?? [];
+    const fallbackMetrics = (entry as any).payload?.metrics ?? [];
+    const nextItems: ItemInput[] = (entry.itemsSnapshot?.length ? entry.itemsSnapshot : fallbackItems).map((item: ItemInput) => ({
+      ...item,
+    }));
+    const nextMetrics: MetricInput[] = (entry.metricsSnapshot?.length ? entry.metricsSnapshot : fallbackMetrics).map(
+      (metric: MetricInput) => ({ ...metric }),
+    );
+    setItems(nextItems);
+    setMetrics(nextMetrics);
+    setScoreResponse(entry.scoreResponse);
+    setResult(entry.result ?? convertScoreResponseToAgentResult(entry.scoreResponse));
     setTab("tier");
   }
 
@@ -1072,7 +1140,15 @@ export default function ScoreForm() {
 
             <div ref={viewRef} className="min-h-[540px]">
               {result ? (
-                <ResultTabs data={result} tab={tab} items={items} reportRef={reportRef} summary={summary} metrics={metrics} />
+                <ResultTabs
+                  data={result}
+                  tab={tab}
+                  items={items}
+                  reportRef={reportRef}
+                  summary={summary}
+                  metrics={metrics}
+                  scoreResponse={scoreResponse}
+                />
               ) : (
                 <div className="flex h-full flex-col justify-center gap-4 rounded-xl border border-dashed border-slate-300 p-6 text-sm text-text-muted dark:border-slate-700">
                   <div>
