@@ -22,20 +22,39 @@ const HISTORY_KEY = "tier-rank-history";
 type PublishVisibility = "PUBLIC" | "UNLISTED" | "PRIVATE";
 
 const DEFAULT_ITEMS: ItemInput[] = [
-  { id: "A", name: "候補A" },
-  { id: "B", name: "候補B" },
-  { id: "C", name: "候補C" },
+  { id: "A", name: "案A" },
+  { id: "B", name: "案B" },
+  { id: "C", name: "案C" },
 ];
 
 const SIMPLE_METRICS: MetricInput[] = [
   { name: "総合", type: "numeric", direction: "MAX", weight: 1, normalize: "none" },
 ];
 
-const BALANCED_METRICS: MetricInput[] = [
-  { name: "価格", type: "numeric", direction: "MIN", weight: 0.4, normalize: "minmax" },
-  { name: "性能", type: "numeric", direction: "MAX", weight: 0.4, normalize: "minmax" },
-  { name: "評判", type: "likert", direction: "MAX", weight: 0.2 },
-];
+const NAMING_PRESET: { items: ItemInput[]; metrics: MetricInput[] } = {
+  items: [
+    { id: "A", name: "案A", meta: { note: "語感が良く覚えやすい" } },
+    { id: "B", name: "案B", meta: { note: "既存ブランドに似た名称" } },
+    { id: "C", name: "案C", meta: { note: "業界用語を活かした案" } },
+  ],
+  metrics: [
+    { name: "覚えやすさ", type: "numeric", direction: "MAX", weight: 3, normalize: "none" },
+    { name: "独自性", type: "numeric", direction: "MAX", weight: 2, normalize: "none" },
+    { name: "業界との親和性", type: "numeric", direction: "MAX", weight: 4, normalize: "none" },
+  ],
+};
+
+const COMPANY_PRESET: { items: ItemInput[]; metrics: MetricInput[] } = {
+  items: [
+    { id: "A", name: "企業A", meta: { note: "創業10年のスタートアップ" } },
+    { id: "B", name: "企業B", meta: { note: "福利厚生が充実した大手" } },
+  ],
+  metrics: [
+    { name: "労働環境", type: "numeric", direction: "MAX", weight: 4, normalize: "none" },
+    { name: "給与水準", type: "numeric", direction: "MAX", weight: 3, normalize: "none" },
+    { name: "将来性", type: "numeric", direction: "MAX", weight: 5, normalize: "none" },
+  ],
+};
 
 type HistoryEntry = {
   id: string;
@@ -157,7 +176,7 @@ export default function ScoreForm() {
       suffix += 1;
       candidate = String.fromCharCode(65 + (suffix % 26));
     }
-    setItems((prev) => [...prev, { id: candidate, name: `候補${candidate}` }]);
+    setItems((prev) => [...prev, { id: candidate, name: `案${candidate}` }]);
   }
 
   function removeItem(index: number) {
@@ -187,14 +206,19 @@ export default function ScoreForm() {
     setCollapsedMetrics((prev) => ({ ...prev, [index]: !prev[index] }));
   }
 
-  function applyPreset(kind: "items" | "simple" | "balanced") {
-    if (kind === "items") {
+  function applyPreset(kind: "reset" | "naming" | "company") {
+    if (kind === "reset") {
       setItems(DEFAULT_ITEMS.map((item) => ({ ...item })));
-    } else if (kind === "simple") {
       setMetrics(SIMPLE_METRICS.map((metric) => ({ ...metric })));
-    } else {
-      setMetrics(BALANCED_METRICS.map((metric) => ({ ...metric })));
+      return;
     }
+    if (kind === "naming") {
+      setItems(NAMING_PRESET.items.map((item) => ({ ...item })));
+      setMetrics(NAMING_PRESET.metrics.map((metric) => ({ ...metric })));
+      return;
+    }
+    setItems(COMPANY_PRESET.items.map((item) => ({ ...item })));
+    setMetrics(COMPANY_PRESET.metrics.map((metric) => ({ ...metric })));
   }
 
   function validate(): ScorePayload | undefined {
@@ -456,44 +480,61 @@ export default function ScoreForm() {
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="space-y-4">
             <div className="rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm dark:border-slate-800">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold">評価条件の設定</h2>
-                <div className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
-                  <span>プリセット:</span>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">サンプルプリセット</h2>
+                  <p className="mt-1 text-sm text-text-muted">
+                    入力例を読み込みたいときは以下のサンプルを利用してください。どれかを選ぶと候補と評価軸がまとめてセットされます。
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-sm">
                   <button
-                    onClick={() => applyPreset("items")}
+                    onClick={() => applyPreset("reset")}
                     className="rounded-lg border border-slate-300 px-3 py-1.5 transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                   >
-                    候補サンプル
+                    初期セットに戻す
                   </button>
                   <button
-                    onClick={() => applyPreset("simple")}
+                    onClick={() => applyPreset("naming")}
                     className="rounded-lg border border-slate-300 px-3 py-1.5 transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                   >
-                    シンプル指標
+                    命名案の比較（サンプル）
                   </button>
                   <button
-                    onClick={() => applyPreset("balanced")}
+                    onClick={() => applyPreset("company")}
                     className="rounded-lg border border-slate-300 px-3 py-1.5 transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                   >
-                    バランス指標
+                    企業比較（サンプル）
                   </button>
                 </div>
               </div>
             </div>
 
             <div className="rounded-2xl border border-sky-400/50 bg-sky-50/80 p-4 shadow-sm backdrop-blur dark:border-sky-500/40 dark:bg-sky-900/20">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-base font-semibold text-sky-900 dark:text-sky-100">候補一覧</span>
-                  <span className="rounded-md bg-sky-600 px-2 py-0.5 text-xs font-semibold text-white">{items.length} 件</span>
+              <div className="mb-3 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">Step 1</div>
+                    <div className="text-base font-semibold text-sky-900 dark:text-sky-100">候補を入力する</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-md bg-sky-600 px-2 py-0.5 text-xs font-semibold text-white">{items.length} 件</span>
+                    <button
+                      onClick={addItem}
+                      className="rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-700"
+                    >
+                      候補を追加
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={addItem}
-                  className="rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-700"
-                >
-                  候補を追加
-                </button>
+                <p className="text-xs text-sky-900/80 dark:text-sky-100/80">
+                  ランキングしたい対象を追加してください（例：プランA / プランB、企業A / 企業B、名前案など）。
+                </p>
+                <div className="rounded-xl border border-sky-200/70 bg-white/80 p-3 text-[11px] leading-5 text-sky-900/80 shadow-sm dark:border-sky-700/70 dark:bg-slate-950/40 dark:text-sky-100/80">
+                  <div><span className="font-semibold">候補ID</span>：システム用の短い識別子。例：A、plan_basic など。</div>
+                  <div><span className="font-semibold">表示名</span>：ユーザーに見せる名称。例：案A、PS5。</div>
+                  <div><span className="font-semibold">補足メモ</span>：比較時の参考メモ。例：月額980円の入門プラン。</div>
+                </div>
               </div>
 
               <Droppable droppableId="items">
@@ -549,29 +590,35 @@ export default function ScoreForm() {
                               {!collapsed && (
                                 <div className="space-y-3 text-sm">
                                   <div className="grid gap-3 md:grid-cols-2">
-                                    <label className="flex flex-col gap-1">
+                                  <label className="flex flex-col gap-1">
                                       <span className="font-medium">候補ID</span>
+                                      <span className="text-xs text-sky-800/80 dark:text-sky-100/70">AIが識別する短いID（例：A）</span>
                                       <input
                                         className="rounded-lg border border-sky-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
                                         value={item.id}
                                         onChange={(event) => updateItems(idx, { id: event.target.value })}
+                                        placeholder="例: A"
                                       />
                                     </label>
                                     <label className="flex flex-col gap-1">
                                       <span className="font-medium">表示名</span>
+                                      <span className="text-xs text-sky-800/80 dark:text-sky-100/70">一般ユーザー向けの名前（例：プランA）</span>
                                       <input
                                         className="rounded-lg border border-sky-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
                                         value={item.name ?? ""}
                                         onChange={(event) => updateItems(idx, { name: event.target.value })}
+                                        placeholder="例: プランA"
                                       />
                                     </label>
                                   </div>
                                   <label className="flex flex-col gap-1">
                                     <span className="font-medium">補足メモ（任意）</span>
+                                    <span className="text-xs text-sky-800/80 dark:text-sky-100/70">比較時の参考情報をメモできます</span>
                                     <textarea
                                       className="min-h-[60px] rounded-lg border border-sky-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
                                       value={metaNote}
                                       onChange={(event) => updateItems(idx, { metaNote: event.target.value })}
+                                      placeholder="例: 月額980円の入門プラン"
                                     />
                                   </label>
                                 </div>
@@ -588,17 +635,33 @@ export default function ScoreForm() {
             </div>
 
             <div className="rounded-2xl border border-emerald-400/50 bg-emerald-50/80 p-4 shadow-sm backdrop-blur dark:border-emerald-500/40 dark:bg-emerald-900/20">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-base font-semibold text-emerald-900 dark:text-emerald-100">評価指標</span>
-                  <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">{metrics.length} 件</span>
+              <div className="mb-3 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Step 2</div>
+                    <div className="text-base font-semibold text-emerald-900 dark:text-emerald-100">評価軸を設定する</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">{metrics.length} 件</span>
+                    <button
+                      onClick={addMetric}
+                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700"
+                    >
+                      指標を追加
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={addMetric}
-                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700"
-                >
-                  指標を追加
-                </button>
+                <p className="text-xs text-emerald-900/80 dark:text-emerald-100/80">
+                  比較に使う観点を追加してください。AIはこの情報をもとに総合スコアとティアを提案します。
+                </p>
+                <div className="rounded-xl border border-emerald-200/70 bg-white/80 p-3 text-[11px] leading-5 text-emerald-900/80 shadow-sm dark:border-emerald-700/70 dark:bg-emerald-950/40 dark:text-emerald-100/80">
+                  <div><span className="font-semibold">指標名</span>：例：コスパ / 信頼性 / デザイン。</div>
+                  <div><span className="font-semibold">タイプ</span>：数値（1〜10など）/ 選択式 / Yes/No。迷ったら数値を選べばOK。</div>
+                  <div><span className="font-semibold">評価方向</span>：高いほど良い or 低いほど良い。</div>
+                  <div><span className="font-semibold">正規化</span>：不明な場合は「なし」で構いません。</div>
+                  <div><span className="font-semibold">重み</span>：重要度（例：1〜5）。大きいほど重視されます。</div>
+                  <div><span className="font-semibold">閾値 / 備考</span>：除外条件やメモ（例：信頼性は3未満なら除外）。</div>
+                </div>
               </div>
 
               <Droppable droppableId="metrics">
@@ -677,10 +740,12 @@ export default function ScoreForm() {
                                   <div className="grid gap-3 md:grid-cols-2">
                                     <label className="flex flex-col gap-1">
                                       <span className="font-medium">指標名</span>
+                                      <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">例：コスパ / 信頼性 / デザイン</span>
                                       <input
                                         className="rounded-lg border border-emerald-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                         value={metric.name}
                                         onChange={(event) => updateMetric(idx, { name: event.target.value })}
+                                        placeholder="例: コスパ"
                                       />
                                     </label>
                                     <label className="flex flex-col gap-1">
@@ -690,15 +755,16 @@ export default function ScoreForm() {
                                           ?
                                         </span>
                                       </span>
+                                      <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">数値（1〜10など）/ 選択式 / Yes/No。迷ったら数値でOKです。</span>
                                       <select
                                         className="rounded-lg border border-emerald-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                         value={type}
                                         onChange={(event) => updateMetric(idx, { type: event.target.value as MetricInput["type"] })}
                                       >
-                                        <option value="numeric">数値</option>
-                                        <option value="likert">リッカート</option>
-                                        <option value="boolean">真偽</option>
-                                        <option value="formula">数式</option>
+                                        <option value="numeric">数値（1〜10など）</option>
+                                        <option value="likert">選択式（S/A/B/C 等）</option>
+                                        <option value="boolean">Yes/No（真偽）</option>
+                                        <option value="formula">数式（他指標から算出）</option>
                                       </select>
                                     </label>
                                   </div>
@@ -707,17 +773,19 @@ export default function ScoreForm() {
                                     <div className="grid gap-3 md:grid-cols-2">
                                       <label className="flex flex-col gap-1">
                                         <span className="font-medium">評価方向</span>
+                                        <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">高いほうが良いか、低いほうが良いかを選びます</span>
                                         <select
                                           className="rounded-lg border border-emerald-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                           value={metric.direction ?? "MAX"}
                                           onChange={(event) => updateMetric(idx, { direction: event.target.value as MetricInput["direction"] })}
                                         >
-                                          <option value="MAX">大きいほど良い</option>
-                                          <option value="MIN">小さいほど良い</option>
+                                          <option value="MAX">高いほど良い</option>
+                                          <option value="MIN">低いほど良い</option>
                                         </select>
                                       </label>
                                       <label className="flex flex-col gap-1">
                                         <span className="font-medium">正規化</span>
+                                        <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">分からなければ「なし」のままで大丈夫です</span>
                                         <select
                                           className="rounded-lg border border-emerald-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                           value={metric.normalize ?? "none"}
@@ -734,16 +802,19 @@ export default function ScoreForm() {
                                   <div className="grid gap-3 md:grid-cols-2">
                                     <label className="flex flex-col gap-1">
                                       <span className="font-medium">重み</span>
+                                      <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">重要度を数値で入力（例：1〜5）</span>
                                       <input
                                         type="number"
                                         step="0.1"
                                         className="rounded-lg border border-emerald-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                         value={metric.weight ?? 1}
                                         onChange={(event) => updateMetric(idx, { weight: Number(event.target.value) })}
+                                        placeholder="例: 3"
                                       />
                                     </label>
                                     <label className="flex flex-col gap-1">
-                                      <span className="font-medium">目標値 / 備考</span>
+                                      <span className="font-medium">閾値 / 備考</span>
+                                      <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">除外条件や注記（例：信頼性は3未満なら除外）</span>
                                       <input
                                         className="rounded-lg border border-emerald-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                         value={metric.target ?? ""}
@@ -752,6 +823,7 @@ export default function ScoreForm() {
                                             target: event.target.value === "" ? undefined : event.target.value,
                                           })
                                         }
+                                        placeholder="例: 信頼性は3未満なら除外"
                                       />
                                     </label>
                                   </div>
@@ -906,7 +978,7 @@ export default function ScoreForm() {
                   { label: "ランキング", value: "rank" },
                   { label: "カード", value: "cards" },
                   { label: "レーダー", value: "radar" },
-                  { label: "要約タブ", value: "report" },
+                  { label: "要約", value: "report" },
                   { label: "JSON", value: "json" },
                 ]}
               />
@@ -953,8 +1025,19 @@ export default function ScoreForm() {
               {result ? (
                 <ResultTabs data={result} tab={tab} items={items} reportRef={reportRef} summary={summary} metrics={metrics} />
               ) : (
-                <div className="grid h-full place-items-center rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-text-muted dark:border-slate-700">
-                  AIに評価させるとここにティア表・ランキング・レポートが表示されます。
+                <div className="flex h-full flex-col justify-center gap-4 rounded-xl border border-dashed border-slate-300 p-6 text-sm text-text-muted dark:border-slate-700">
+                  <div>
+                    <div className="text-base font-semibold text-slate-700 dark:text-slate-200">まだ評価は実行されていません。</div>
+                    <p className="mt-1">以下のステップに沿って候補と評価軸を準備してください。</p>
+                  </div>
+                  <ol className="list-decimal space-y-1 pl-5 text-left">
+                    <li>左側で候補（案A、案B など）を登録する</li>
+                    <li>評価軸（例：コスパ、信頼性）を追加する</li>
+                    <li>画面下部の「AIに評価を依頼する」を押す</li>
+                  </ol>
+                  <p className="text-xs text-text-muted">
+                    実行するとティア表・ランキング・要約レポート・JSONをここに表示します。
+                  </p>
                 </div>
               )}
             </div>
@@ -966,7 +1049,7 @@ export default function ScoreForm() {
         <div className="pointer-events-auto flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold">🚀 AIでスコアリング</div>
+              <div className="text-sm font-semibold">🚀 AI評価を実行</div>
               <div className="text-xs text-text-muted">候補 {items.length} 件 / 指標 {metrics.length} 件</div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -994,7 +1077,7 @@ export default function ScoreForm() {
                 disabled={disableRunButton}
                 className="rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-sky-600 hover:to-emerald-600 disabled:opacity-60"
               >
-                {loading ? "評価を実行中…" : "AIでスコアリング"}
+                {loading ? "AIが評価しています…" : "AIに評価を依頼する"}
               </button>
             </div>
           </div>
@@ -1002,12 +1085,12 @@ export default function ScoreForm() {
             {loading ? (
               <span className="flex items-center gap-2 text-sky-600">
                 <span className="h-2 w-2 animate-ping rounded-full bg-sky-500" />
-                処理中… AIの評価を待機しています。
+                処理中… AIの結果を待機しています。
               </span>
             ) : error ? (
               <span className="text-rose-500">{error}</span>
             ) : (
-              <span className="text-text-muted">設定を調整してから実行ボタンを押してください。</span>
+              <span className="text-text-muted">左側のステップを埋めたら「AIに評価を依頼する」を押してください。</span>
             )}
           </div>
           {(publishStatus === "success" && publishedUrl) || publishError ? (
