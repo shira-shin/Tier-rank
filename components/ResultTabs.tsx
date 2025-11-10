@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import type { AgentItem, AgentResult, ItemInput, MetricInput } from "@/lib/types";
+import type { AgentItem, AgentResult, ItemInput, MetricInput, ScoreResponse } from "@/lib/types";
 import type { ReportSummary } from "@/lib/report";
 
 function TierBadge({ tier }: { tier?: string }) {
@@ -42,6 +42,7 @@ type ResultTabsProps = {
   reportRef?: RefObject<HTMLDivElement>;
   summary?: ReportSummary;
   metrics?: MetricInput[];
+  scoreResponse?: ScoreResponse;
 };
 
 export default function ResultTabs({
@@ -51,11 +52,27 @@ export default function ResultTabs({
   reportRef,
   summary,
   metrics: definedMetrics = [],
+  scoreResponse,
 }: ResultTabsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const items: AgentItem[] = data?.items ?? [];
   const ranked = useMemo(() => [...items].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)), [items]);
+  const tierResults = scoreResponse?.tiers ?? [];
+  const scoreEntries = useMemo(() => {
+    if (!scoreResponse) return ranked;
+    return [...scoreResponse.scores].sort((a, b) => b.score - a.score);
+  }, [scoreResponse, ranked]);
+  const scoreLookup = useMemo(() => {
+    if (!scoreResponse) return undefined;
+    return new Map(scoreResponse.scores.map((entry) => [entry.id, entry]));
+  }, [scoreResponse]);
+  const tierOrder = useMemo(() => {
+    if (tierResults.length > 0) {
+      return tierResults.map((tier) => tier.label);
+    }
+    return ["S", "A", "B", "C"];
+  }, [tierResults]);
 
   const chartPalette = ["#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#ccfbf1"];
   const chipClasses = [
@@ -134,42 +151,56 @@ export default function ResultTabs({
 
       {tab === "tier" && (
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          {["S", "A", "B", "C"].map((tier) => (
-            <div
-              key={tier}
-              className="rounded-xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/50"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <div className="font-semibold">Tier {tier}</div>
-                <TierBadge tier={tier} />
+          {(scoreResponse ? tierOrder : ["S", "A", "B", "C"]).map((tier) => {
+            const tierData = scoreResponse ? tierResults.find((entry) => entry.label === tier) : undefined;
+            const tierItems = scoreResponse
+              ? tierData?.items ?? []
+              : ranked.filter((item) => (item.tier ?? "").toUpperCase() === tier.toUpperCase());
+            return (
+              <div
+                key={tier}
+                className="rounded-xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/50"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="font-semibold">Tier {tier}</div>
+                  <TierBadge tier={tier} />
+                </div>
+                <ul className="space-y-3">
+                  {tierItems.map((item) => {
+                    const scoreValue = scoreResponse
+                      ? Math.max(0, Math.min(1, scoreLookup?.get(item.id)?.score ?? (item as any).score ?? 0))
+                      : Math.max(0, Math.min(1, (item as AgentItem).score ?? 0));
+                    const label = scoreResponse
+                      ? (item as any).name || scoreLookup?.get(item.id)?.name || nameMap.get(item.id) || item.id
+                      : nameMap.get(item.id) ?? (item as AgentItem).id;
+                    const reasonText = scoreResponse
+                      ? (item as any).reasons ?? scoreLookup?.get(item.id)?.reasons
+                      : (item as AgentItem).reason;
+                    return (
+                      <li key={item.id} className="space-y-1 text-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate" title={label}>
+                            {label}
+                          </span>
+                          <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-200">
+                            {(scoreValue * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full bg-emerald-100 dark:bg-emerald-900/40">
+                          <div
+                            className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                            style={{ width: `${scoreValue * 100}%` }}
+                          />
+                        </div>
+                        {reasonText && <p className="text-xs text-text-muted">{reasonText}</p>}
+                      </li>
+                    );
+                  })}
+                  {tierItems.length === 0 && <li className="text-sm text-text-muted">該当なし</li>}
+                </ul>
               </div>
-              <ul className="space-y-3">
-                {ranked
-                  .filter((item) => item.tier === tier)
-                  .map((item) => (
-                    <li key={item.id} className="space-y-1 text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate" title={nameMap.get(item.id) ?? item.id}>
-                          {nameMap.get(item.id) ?? item.id}
-                        </span>
-                        <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-200">
-                          {((item.score ?? 0) * 100).toFixed(1)}%
-                        </span>
-                      </div>
-                      <div className="h-2 rounded-full bg-emerald-100 dark:bg-emerald-900/40">
-                        <div
-                          className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                          style={{ width: `${Math.max(0, Math.min(1, item.score ?? 0)) * 100}%` }}
-                        />
-                      </div>
-                    </li>
-                  ))}
-                {ranked.filter((item) => item.tier === tier).length === 0 && (
-                  <li className="text-sm text-text-muted">該当なし</li>
-                )}
-              </ul>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -186,33 +217,40 @@ export default function ResultTabs({
               </tr>
             </thead>
             <tbody>
-              {ranked.map((item, idx) => {
-                const contribEntries = Object.entries(item.contrib ?? {})
-                  .map(([key, value]) => ({ key, value: Number(value) }))
-                  .filter((entry) => Number.isFinite(entry.value))
-                  .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
-                  .slice(0, 3);
+              {scoreEntries.map((entry, idx) => {
+                const tier = (entry as any).tier ?? scoreLookup?.get(entry.id)?.tier;
+                const scoreValue = Math.max(0, Math.min(1, (entry as any).score ?? scoreLookup?.get(entry.id)?.score ?? 0));
+                const displayName =
+                  (entry as any).name ?? scoreLookup?.get(entry.id)?.name ?? nameMap.get(entry.id) ?? entry.id;
+                const reasonText = (entry as any).reason ?? (entry as any).reasons ?? scoreLookup?.get(entry.id)?.reasons;
+                const contribEntries = !scoreResponse
+                  ? Object.entries((entry as AgentItem).contrib ?? {})
+                      .map(([key, value]) => ({ key, value: Number(value) }))
+                      .filter((tokenValue) => Number.isFinite(tokenValue.value))
+                      .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+                      .slice(0, 3)
+                  : [];
                 return (
-                  <tr key={item.id} className="border-t border-slate-200/70 dark:border-slate-700/60">
+                  <tr key={entry.id} className="border-t border-slate-200/70 dark:border-slate-700/60">
                     <td className="px-3 py-3 font-semibold text-slate-600 dark:text-slate-300">{idx + 1}</td>
                     <td className="px-3 py-3">
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{nameMap.get(item.id) ?? item.id}</div>
-                      <div className="text-xs text-text-muted">{item.id}</div>
+                      <div className="font-medium text-slate-900 dark:text-slate-100">{displayName}</div>
+                      <div className="text-xs text-text-muted">{entry.id}</div>
                     </td>
                     <td className="px-3 py-3">
-                      <TierBadge tier={item.tier} />
+                      <TierBadge tier={tier} />
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-2">
                         {contribEntries.length === 0 && <span className="text-xs text-text-muted">データ不足</span>}
-                        {contribEntries.map((entry) => {
-                          const token = metricColorMap.get(entry.key);
+                        {contribEntries.map((tokenEntry) => {
+                          const token = metricColorMap.get(tokenEntry.key);
                           return (
                             <span
-                              key={entry.key}
+                              key={tokenEntry.key}
                               className={clsx("rounded-full px-3 py-1 text-xs font-semibold", token?.chipClass ?? "bg-emerald-100 text-emerald-800")}
                             >
-                              {entry.key}: {(entry.value * 100).toFixed(0)}%
+                              {tokenEntry.key}: {(tokenEntry.value * 100).toFixed(0)}%
                             </span>
                           );
                         })}
@@ -220,13 +258,14 @@ export default function ResultTabs({
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-col items-end gap-1">
-                        <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">{((item.score ?? 0) * 100).toFixed(1)}%</span>
+                        <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">{(scoreValue * 100).toFixed(1)}%</span>
                         <div className="h-2 w-32 rounded-full bg-emerald-100 dark:bg-emerald-900/40">
                           <div
                             className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                            style={{ width: `${Math.max(0, Math.min(1, item.score ?? 0)) * 100}%` }}
+                            style={{ width: `${scoreValue * 100}%` }}
                           />
                         </div>
+                        {reasonText && <span className="self-start text-xs text-text-muted">{reasonText}</span>}
                       </div>
                     </td>
                   </tr>
@@ -390,7 +429,7 @@ export default function ResultTabs({
 
       {tab === "json" && (
         <pre className="h-[420px] overflow-auto rounded-xl border border-slate-200 bg-slate-950 p-3 text-xs text-slate-100 dark:border-slate-800">
-{JSON.stringify(data ?? {}, null, 2)}
+{JSON.stringify(scoreResponse ?? data ?? {}, null, 2)}
         </pre>
       )}
     </div>

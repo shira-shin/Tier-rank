@@ -22,17 +22,34 @@ export type UIMetric = {
 
 export type MetricInput = UIMetric;
 
-export type ScorePayload = {
-  items: ItemInput[];
-  metrics: MetricInput[];
-  use_web_search?: boolean;
+export type Candidate = {
+  id: string;
+  name: string;
+  description?: string;
+};
+
+export type Criterion = {
+  key: string;
+  label: string;
+  direction: "up" | "down";
+  weight: number;
+  type?: string;
+  note?: string;
+};
+
+export type ScoreRequest = {
+  candidates: Candidate[];
+  criteria: Criterion[];
+  options?: {
+    tiers?: string[];
+  };
 };
 
 export type AgentItem = {
   id: string;
   score?: number;
   contrib?: Record<string, number>;
-  tier?: "S" | "A" | "B" | "C";
+  tier?: string;
   reason?: string;
   sources?: { url: string; title: string }[];
 };
@@ -42,4 +59,27 @@ export type AgentResult = {
   meta?: { confidence?: "A" | "B" | "C" };
   error?: string;
   raw?: string;
+};
+
+export type TierItemResult = {
+  id: string;
+  name: string;
+  score: number;
+  reasons?: string;
+};
+
+export type TierResult = {
+  label: string;
+  items: TierItemResult[];
+};
+
+export type ScoreResponse = {
+  tiers: TierResult[];
+  scores: {
+    id: string;
+    name: string;
+    score: number;
+    tier: string;
+    reasons?: string;
+  }[];
 };
