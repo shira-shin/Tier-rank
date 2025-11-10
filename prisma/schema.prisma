@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Visibility {
@@ -39,6 +40,8 @@ model Profile {
   bio       String?
   avatarUrl String?
   links     Json?
+
+  @@map("Profile")
 }
 
 model Ranking {
@@ -62,6 +65,8 @@ model Ranking {
   views       Int      @default(0)
   likes       Like[]
   bookmarks   Bookmark[]
+
+  @@map("Ranking")
 }
 
 model Like {
