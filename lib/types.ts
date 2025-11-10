@@ -33,7 +33,7 @@ export type Criterion = {
   label: string;
   direction: "up" | "down";
   weight: number;
-  type?: string;
+  type: MetricType;
   note?: string;
 };
 
