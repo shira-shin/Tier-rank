@@ -80,8 +80,7 @@ type HistoryEntry = {
 };
 
 type ScoreFormProps = {
-  projectSlug?: string;
-  searchProjectSlug?: string;
+  initialProjectSlug?: string;
 };
 
 function createHistoryId() {
@@ -134,12 +133,8 @@ function isScoreResponseEntry(
   return "name" in entry;
 }
 
-export default function ScoreForm({
-  projectSlug: initialProjectSlug,
-  searchProjectSlug,
-}: ScoreFormProps = {}) {
+export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
   const { data: session } = useSession();
-  const resolvedProjectSlug = searchProjectSlug ?? initialProjectSlug;
   const [items, setItems] = useState<ItemInput[]>(() => DEFAULT_ITEMS.map((item) => ({ ...item })));
   const [metrics, setMetrics] = useState<MetricInput[]>(() => SIMPLE_METRICS.map((metric) => ({ ...metric })));
   const [useWeb, setUseWeb] = useState(false);
@@ -181,7 +176,7 @@ export default function ScoreForm({
     loading ||
     (limitState.scoreRemaining !== undefined && limitState.scoreRemaining <= 0) ||
     (useWeb && limitState.webRemaining !== undefined && limitState.webRemaining <= 0);
-  const projectSlugMissing = !resolvedProjectSlug;
+  const projectSlugMissing = !initialProjectSlug;
   const disableRun = disableRunButton || projectSlugMissing;
   const publishDisabled = publishStatus === "loading";
   const publishedUrl = publishedSlug ? buildRankingUrl(publishedSlug) : undefined;
@@ -399,7 +394,7 @@ export default function ScoreForm({
     setPublishError(undefined);
     setPublishedSlug(undefined);
     try {
-      const activeSlug = (searchParams.get("project")?.trim() || undefined) ?? initialProjectSlug;
+      const activeSlug = initialProjectSlug;
       if (!activeSlug) {
         setError("AIプロジェクトが設定されていません。管理者にお問い合わせください。");
         setScoreResponse(undefined);
