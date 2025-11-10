@@ -72,6 +72,25 @@ function createHistoryId() {
   return `history-${Date.now()}`;
 }
 
+function slugify(input: string) {
+  return input
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+}
+
+function createRequestSlug(source?: string) {
+  const normalized = source ? slugify(source) : "";
+  if (normalized) return normalized;
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `run-${crypto.randomUUID()}`;
+  }
+  return `run-${Date.now()}`;
+}
+
 function reorderList<T>(list: T[], startIndex: number, endIndex: number): T[] {
   const result = Array.from(list);
   const [removed] = result.splice(startIndex, 1);
@@ -308,7 +327,9 @@ export default function ScoreForm() {
     setPublishError(undefined);
     setPublishedSlug(undefined);
     try {
-      const response = await fetch("/api/projects/demo/agent/score", {
+      const slugSource = historyTitle.trim() || payload.items.map((item) => item.id).join("-");
+      const requestSlug = createRequestSlug(slugSource);
+      const response = await fetch(`/api/projects/${encodeURIComponent(requestSlug)}/agent/score`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -346,12 +367,26 @@ export default function ScoreForm() {
             setError("AIスコアリングの利用上限に達しました。明日までお待ちください。");
           }
         } else {
-          setError(json && typeof json.error === "string" ? json.error : "API呼び出しに失敗しました。");
+          const code = json && typeof json.error === "string" ? json.error : undefined;
+          setError(resolveAgentErrorMessage(code));
         }
+        setResult(undefined);
         return;
       }
 
-      setResult(json);
+      if (json && typeof json === "object" && "error" in json && typeof json.error === "string") {
+        setError(resolveAgentErrorMessage(json.error));
+        setResult(undefined);
+        return;
+      }
+
+      if (!json || !Array.isArray((json as AgentResult).items) || ((json as AgentResult).items?.length ?? 0) === 0) {
+        setError("AIがスコアを返しませんでした。入力内容を見直して再度お試しください。");
+        setResult(undefined);
+        return;
+      }
+
+      setResult(json as AgentResult);
       setTab((prev) => (prev === "json" || prev === "report" ? prev : "tier"));
       if (historyEnabled) {
         const entry: HistoryEntry = {
@@ -369,6 +404,20 @@ export default function ScoreForm() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function resolveAgentErrorMessage(code?: string) {
+    if (!code) return "AIがスコアを返しませんでした。時間をおいて再試行してください。";
+    const messages: Record<string, string> = {
+      invalid_request: "候補と評価指標の入力内容を確認してください。",
+      invalid_json: "リクエスト形式が正しくありません。ページを再読み込みして再試行してください。",
+      no_items: "AIが評価結果を返しませんでした。候補の情報を見直して再実行してください。",
+      NETWORK_ERROR: "AIサービスへの接続に失敗しました。時間をおいて再試行してください。",
+      UPSTREAM_ERROR: "AIサービス側でエラーが発生しました。しばらく待ってから再試行してください。",
+      EMPTY_RESPONSE: "AIが結果を返しませんでした。入力内容を調整して再実行してください。",
+      PARSE_ERROR: "AIのレスポンスを解析できませんでした。少し時間をおいて再試行してください。",
+    };
+    return messages[code] ?? code;
   }
 
   function exportAsCSV() {

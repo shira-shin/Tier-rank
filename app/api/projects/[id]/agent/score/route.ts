@@ -49,7 +49,15 @@ function resolveIdentifier(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
-  const parsed = Body.parse(await req.json());
+  let parsed: z.infer<typeof Body>;
+  try {
+    parsed = Body.parse(await req.json());
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "invalid_request", issues: error.issues }, { status: 400 });
+    }
+    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+  }
 
   const session = await getServerSession(authOptions);
   const identifier = session?.user?.id ?? resolveIdentifier(req);
@@ -95,18 +103,25 @@ export async function POST(req: NextRequest) {
     use_web_search: parsed.use_web_search,
   };
 
+  const headers: Record<string, string> = {
+    "x-ratelimit-score-remaining": String(scoreLimitResult.remaining),
+    "x-ratelimit-score-reset": scoreLimitResult.reset.toISOString(),
+  };
+  if (webLimitResult) {
+    headers["x-ratelimit-web-remaining"] = String(webLimitResult.remaining);
+    headers["x-ratelimit-web-reset"] = webLimitResult.reset.toISOString();
+  }
+
   const agentResult = await scoreWithAgent(payload);
+
+  if (agentResult.error) {
+    return NextResponse.json(agentResult, { status: 502, headers });
+  }
+
+  if (!agentResult.items || agentResult.items.length === 0) {
+    return NextResponse.json({ error: "no_items" }, { status: 502, headers });
+  }
+
   const final = applyFormulaMetrics(agentResult, parsed.metrics);
-  return NextResponse.json(final, {
-    headers: {
-      "x-ratelimit-score-remaining": String(scoreLimitResult.remaining),
-      "x-ratelimit-score-reset": scoreLimitResult.reset.toISOString(),
-      ...(webLimitResult
-        ? {
-            "x-ratelimit-web-remaining": String(webLimitResult.remaining),
-            "x-ratelimit-web-reset": webLimitResult.reset.toISOString(),
-          }
-        : {}),
-    },
-  });
+  return NextResponse.json(final, { headers });
 }
