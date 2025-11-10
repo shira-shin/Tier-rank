@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
 import { DragDropContext, Draggable, Droppable, type DropResult } from "react-beautiful-dnd";
 import clsx from "clsx";
 import Segmented from "@/components/Segmented";
@@ -82,6 +81,7 @@ type HistoryEntry = {
 
 type ScoreFormProps = {
   projectSlug?: string;
+  searchProjectSlug?: string;
 };
 
 function createHistoryId() {
@@ -134,10 +134,11 @@ function isScoreResponseEntry(
   return "name" in entry;
 }
 
-export default function ScoreForm({ projectSlug: initialProjectSlug }: ScoreFormProps = {}) {
+export default function ScoreForm({
+  projectSlug: initialProjectSlug,
+  searchProjectSlug,
+}: ScoreFormProps = {}) {
   const { data: session } = useSession();
-  const searchParams = useSearchParams();
-  const searchProjectSlug = searchParams.get("project")?.trim() || undefined;
   const resolvedProjectSlug = searchProjectSlug ?? initialProjectSlug;
   const [items, setItems] = useState<ItemInput[]>(() => DEFAULT_ITEMS.map((item) => ({ ...item })));
   const [metrics, setMetrics] = useState<MetricInput[]>(() => SIMPLE_METRICS.map((metric) => ({ ...metric })));
