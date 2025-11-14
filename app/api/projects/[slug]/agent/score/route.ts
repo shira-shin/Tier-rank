@@ -99,15 +99,80 @@ function buildPrompt(projectName: string, projectDescription: string | null, bod
   };
 
   return [
-    { role: "system", content: header },
-    { role: "user", content: schemaInstruction },
+    { role: "system" as const, content: header },
+    { role: "user" as const, content: schemaInstruction },
     {
-      role: "user",
+      role: "user" as const,
       content:
         "Rank the candidates using the criteria. Use every candidate exactly once in scores. Group the tier sections using the requested tier order. Provide concise Japanese reasons (<=160 chars).",
     },
-    { role: "user", content: JSON.stringify(projectContext) },
+    { role: "user" as const, content: JSON.stringify(projectContext) },
   ];
+}
+
+type PromptMessages = ReturnType<typeof buildPrompt>;
+
+function formatMessagesForResponses(messages: PromptMessages) {
+  return messages.map((message) => ({
+    role: message.role,
+    content: [
+      {
+        type: "text" as const,
+        text: typeof message.content === "string" ? message.content : JSON.stringify(message.content),
+      },
+    ],
+  }));
+}
+
+function safeParseJson(value: string | null | undefined) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+type ResponsesPayload = {
+  model: string;
+  input: ReturnType<typeof formatMessagesForResponses>;
+  modalities?: string[];
+};
+
+class OpenAI {
+  private readonly apiKey: string;
+
+  constructor(options: { apiKey?: string }) {
+    if (!options?.apiKey) {
+      throw new Error("OPENAI_API_KEY is not set");
+    }
+    this.apiKey = options.apiKey;
+  }
+
+  private async createResponse(payload: ResponsesPayload) {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const rawText = await response.text();
+
+    if (!response.ok) {
+      const error = new Error(`OpenAI response error: ${response.status} ${response.statusText}`);
+      (error as any).response = { status: response.status, data: safeParseJson(rawText) };
+      throw error;
+    }
+
+    return rawText ? safeParseJson(rawText) : null;
+  }
+
+  responses = {
+    create: (payload: ResponsesPayload) => this.createResponse(payload),
+  };
 }
 
 function normaliseResponse(body: ScoreRequest, payload: ScoreResponse): ScoreResponsePayload {
@@ -186,7 +251,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Project slug is required" }, { status: 400 });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
       return NextResponse.json({ error: "OPENAI_API_KEY is not set" }, { status: 500 });
     }
 
@@ -211,41 +277,29 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
 
     const messages = buildPrompt(project.name, project.description, body);
+    const formattedInput = formatMessagesForResponses(messages);
+    const client = new OpenAI({ apiKey });
 
-    let response: Response;
+    let parsedResponse: any;
     try {
-      response = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4.1-mini",
-          modalities: ["text"],
-          input: messages,
-        }),
+      parsedResponse = await client.responses.create({
+        model: "gpt-4.1-mini",
+        modalities: ["text"],
+        input: formattedInput,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return NextResponse.json({ error: "Failed to call OpenAI", details: message }, { status: 500 });
-    }
-
-    const rawText = await response.text();
-
-    if (!response.ok) {
-      return NextResponse.json({ error: "OpenAI response error", details: rawText || response.statusText }, { status: 500 });
-    }
-
-    let parsed: unknown;
-    try {
-      parsed = rawText ? JSON.parse(rawText) : undefined;
-    } catch {
-      parsed = undefined;
+      const responseData = (error as any)?.response?.data ?? null;
+      console.error("OpenAI API error", responseData, message);
+      return NextResponse.json({ error: "OpenAI API error", message, openai: responseData }, { status: 500 });
     }
 
     const textOutput =
-      (parsed as any)?.output?.[0]?.content?.[0]?.text ?? (parsed as any)?.output_text ?? (typeof rawText === "string" ? rawText : "");
+      parsedResponse?.output_text?.trim?.() ||
+      parsedResponse?.output
+        ?.flatMap((item: any) => item?.content ?? [])
+        .find((content: any) => content?.type === "output_text")?.text ||
+      "";
 
     if (!textOutput) {
       return NextResponse.json({ error: "Empty response from OpenAI" }, { status: 500 });
