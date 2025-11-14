@@ -5,18 +5,22 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-if (!process.env.POSTGRES_PRISMA_URL && process.env.POSTGRES_URL) {
-  process.env.POSTGRES_PRISMA_URL = process.env.POSTGRES_URL;
-}
+const databaseUrl =
+  process.env.DATABASE_URL ?? process.env.POSTGRES_PRISMA_URL ?? process.env.POSTGRES_URL;
 
-if (!process.env.POSTGRES_URL_NON_POOLING && process.env.POSTGRES_URL) {
-  process.env.POSTGRES_URL_NON_POOLING = process.env.POSTGRES_URL;
-}
-
-if (!process.env.POSTGRES_PRISMA_URL) {
+if (!databaseUrl) {
   throw new Error(
-    "POSTGRES_PRISMA_URL (or POSTGRES_URL as fallback) must be configured to initialise PrismaClient.",
+    "DATABASE_URL (or POSTGRES_PRISMA_URL/POSTGRES_URL as fallback) must be configured to initialise PrismaClient.",
   );
+}
+
+process.env.DATABASE_URL = databaseUrl;
+
+if (!process.env.DIRECT_URL) {
+  const directUrlFallback =
+    process.env.POSTGRES_URL_NON_POOLING ?? process.env.POSTGRES_URL ?? databaseUrl;
+
+  process.env.DIRECT_URL = directUrlFallback;
 }
 
 const prismaClientSingleton = () =>
