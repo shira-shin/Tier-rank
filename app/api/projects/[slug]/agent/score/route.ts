@@ -133,6 +133,19 @@ function safeParseJson(value: string | null | undefined) {
   }
 }
 
+function parseScoreResponsePayload(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    const schemaResult = scoreResponseSchema.safeParse(parsed);
+    if (!schemaResult.success) {
+      return { success: false as const, error: schemaResult.error, details: value };
+    }
+    return { success: true as const, data: schemaResult.data };
+  } catch (error) {
+    return { success: false as const, error, details: value };
+  }
+}
+
 type ResponsesPayload = {
   model: string;
   input: ReturnType<typeof formatMessagesForResponses>;
@@ -244,6 +257,8 @@ function normaliseResponse(body: ScoreRequest, payload: ScoreResponse): ScoreRes
 }
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
+  console.log("agent/score: handler start", { slug: params.slug });
+
   try {
     const slug = params.slug;
 
@@ -261,64 +276,83 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: `Project not found for slug: ${slug}` }, { status: 404 });
     }
 
-    let body: ScoreRequest;
-    try {
-      const json = await req.json();
-      body = scoreRequestSchema.parse(json);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return NextResponse.json({ error: "Invalid request payload", issues: error.issues }, { status: 400 });
-      }
+    const rawBody = await req
+      .json()
+      .then((value) => value)
+      .catch(() => null);
+    if (!rawBody) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
+
+    const parsedBody = scoreRequestSchema.safeParse(rawBody);
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request payload", issues: parsedBody.error.issues }, { status: 400 });
+    }
+
+    const body = parsedBody.data;
 
     if (!body.candidates?.length || !body.criteria?.length) {
       return NextResponse.json({ error: "Candidates and criteria are required" }, { status: 400 });
     }
 
+    console.log("agent/score: request body", body);
+
     const messages = buildPrompt(project.name, project.description, body);
     const formattedInput = formatMessagesForResponses(messages);
     const client = new OpenAI({ apiKey });
 
-    let parsedResponse: any;
     try {
-      parsedResponse = await client.responses.create({
+      const response = await client.responses.create({
         model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
         input: formattedInput,
       });
+
+      console.log("agent/score: openai raw response", JSON.stringify(response));
+
+      const textOutput =
+        response?.output_text?.trim?.() ||
+        response?.output
+          ?.flatMap((item: any) => item?.content ?? [])
+          .find((content: any) => content?.type === "output_text")?.text ||
+        "";
+
+      if (!textOutput) {
+        console.error("agent/score: missing output text", response);
+        return NextResponse.json(
+          { error: "EMPTY_RESPONSE", message: "OpenAI output_text is empty" },
+          { status: 500 },
+        );
+      }
+
+      const parsedResponse = parseScoreResponsePayload(textOutput);
+      if (!parsedResponse.success) {
+        console.error("agent/score: parse failure", parsedResponse.error, parsedResponse.details);
+        return NextResponse.json(
+          { error: "PARSE_ERROR", message: "Failed to parse OpenAI response", details: parsedResponse.details },
+          { status: 500 },
+        );
+      }
+
+      const normalised = normaliseResponse(body, parsedResponse.data);
+
+      return NextResponse.json(normalised, { status: 200 });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const responseData = (error as any)?.response?.data ?? null;
-      console.error("OpenAI API error (agent/score)", responseData, message);
-      return NextResponse.json({ error: "OpenAI API error", message, openai: responseData }, { status: 500 });
+      console.error("agent/score: fatal openai call", message, responseData);
+
+      return NextResponse.json(
+        {
+          error: "UPSTREAM_ERROR",
+          message,
+          openai: responseData,
+        },
+        { status: 500 },
+      );
     }
-
-    const textOutput =
-      parsedResponse?.output_text?.trim?.() ||
-      parsedResponse?.output
-        ?.flatMap((item: any) => item?.content ?? [])
-        .find((content: any) => content?.type === "output_text")?.text ||
-      "";
-
-    if (!textOutput) {
-      return NextResponse.json({ error: "Empty response from OpenAI" }, { status: 500 });
-    }
-
-    let structured: ScoreResponse;
-    try {
-      const json = JSON.parse(textOutput);
-      structured = scoreResponseSchema.parse(json);
-    } catch (error) {
-      return NextResponse.json({ error: "Failed to parse OpenAI response", details: textOutput, issues: error }, { status: 500 });
-    }
-
-    const normalised = normaliseResponse(body, structured);
-
-    // Successful payload echoes the expected { tiers: TierResult[], scores: ScoreEntry[] } contract.
-    return NextResponse.json(normalised);
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    console.error("/api/projects/[slug]/agent/score error", error);
-    return NextResponse.json({ error: "Internal Server Error", detail }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("agent/score: fatal error", error);
+    return NextResponse.json({ error: "agent_score_failed", message }, { status: 500 });
   }
 }
