@@ -17,7 +17,11 @@ npm run dev
 NEXTAUTH_URL=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
+DATABASE_URL=
+DATABASE_URL_UNPOOLED=
 ```
+
+`DATABASE_URL` と `DATABASE_URL_UNPOOLED` には、それぞれ接続プール経由／非プールの PostgreSQL 接続 URL を設定します。Vercel では Postgres Integration が Production / Preview に自動で挿入してくれるため、ローカル開発時のみ Neon などの接続情報を `.env.local` や `.env` に記述してください。
 
 ## OAuth URL マトリクス（Local / Preview / Production）
 
@@ -44,8 +48,9 @@ GOOGLE_CLIENT_SECRET=
 ### Vercel 向けビルド・デプロイ設定
 - Build Command: `npm run build:vercel`
 - 必須環境変数:
-  - `DATABASE_URL`: Prisma の接続先。Vercel の Environment Variables に Production / Preview それぞれ登録してください。
-  - `DIRECT_URL`: (任意) 接続プールをバイパスする直通接続 URL。`schema.prisma` の `directUrl` 用に登録します。未設定の場合は `DATABASE_URL` と同じ値を入れてください。
+  - `DATABASE_URL`: Prisma の接続先 (接続プール経由)。Vercel の Environment Variables では Postgres Integration により Production / Preview に自動登録されます。ローカルでは Neon などの接続情報を設定してください。
+  - `DATABASE_URL_UNPOOLED`: 接続プールをバイパスする直通接続 URL。こちらも Vercel の Postgres Integration が自動で登録してくれるため、ローカルでは Neon などの非プール接続 URL を指定します。
+- `schema.prisma` では `env("DIRECT_URL")` を利用していないため、`DIRECT_URL` 環境変数は不要です。
 - `package.json` のスクリプト構成:
   - `postinstall`: `prisma generate`
   - `build:vercel`: `prisma migrate deploy && prisma generate && next build`
