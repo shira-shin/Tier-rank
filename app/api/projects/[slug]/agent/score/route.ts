@@ -117,7 +117,7 @@ function formatMessagesForResponses(messages: PromptMessages) {
     role: message.role,
     content: [
       {
-        type: "text" as const,
+        type: "input_text" as const,
         text: typeof message.content === "string" ? message.content : JSON.stringify(message.content),
       },
     ],
