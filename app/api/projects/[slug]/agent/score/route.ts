@@ -84,10 +84,29 @@ function clampScore(value?: number): number {
 
 function buildPrompt(projectName: string, projectDescription: string | null, body: ScoreRequest) {
   const tierList = body.options?.tiers?.length ? body.options.tiers : ["S", "A", "B", "C"];
-  const header = `You are an expert analyst that creates tier lists. Respond strictly in JSON matching the provided schema. Use tiers ${tierList.join(", ")}. Score every candidate between 0 and 1 inclusive with at most 3 decimal places. Include a short reason for each candidate.`;
+  const header = `あなたは評価エージェントです。候補と指標に基づきティア表とスコアリングを行います。次に示すJSON形式のみを返してください。前後に説明文やコードブロック(\`\`\`json など)を付けてはいけません。ティアは ${tierList.join(", ")} の順序で使用し、すべての候補に0から1(小数第3位まで)のスコアと簡潔な日本語の理由を付与してください。`;
 
-  const schemaInstruction =
-    "Return STRICT JSON with shape {\"tiers\":[{\"label\":string,\"items\":[{\"id\":string,\"name\":string,\"score\":number,\"reasons\"?:string}]}],\"scores\":[{\"id\":string,\"name\":string,\"score\":number,\"tier\":string,\"reasons\"?:string}]}";
+  const schemaInstruction = [
+    "出力フォーマット:",
+    "{",
+    '  "tiers": [',
+    '    {',
+    '      "label": "S",',
+    '      "items": [',
+    '        { "id": "candidate_id", "name": "候補名", "score": 0.85, "reasons": "理由" }',
+    '      ]',
+    '    }',
+    '  ],',
+    '  "scores": [',
+    '    { "id": "candidate_id", "name": "候補名", "score": 0.85, "tier": "S", "reasons": "理由" }',
+    '  ]',
+    "}",
+    "",
+    "制約:",
+    "- 有効なJSONのみを返す",
+    "- 文字列は必ずダブルクォートで囲む",
+    "- コメントや余計なキーを追加しない",
+  ].join("\n");
 
   const projectContext = {
     project: {
@@ -155,9 +174,34 @@ type OpenAIResponsePayload = {
   [key: string]: unknown;
 };
 
+function parseAgentJson(raw: string) {
+  if (!raw) {
+    throw new Error("empty OpenAI output");
+  }
+
+  let text = raw.trim();
+
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenceMatch) {
+    text = fenceMatch[1].trim();
+  }
+
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    text = text.slice(firstBrace, lastBrace + 1);
+  }
+
+  if (!text) {
+    throw new Error("OpenAI output missing JSON object");
+  }
+
+  return JSON.parse(text);
+}
+
 function parseScoreResponsePayload(value: string): ParseScoreResponseResult {
   try {
-    const parsed = JSON.parse(value);
+    const parsed = parseAgentJson(value);
     const schemaResult = scoreResponseSchema.safeParse(parsed);
     if (!schemaResult.success) {
       return {
@@ -407,8 +451,13 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       const parsedResponse = parseScoreResponsePayload(textOutput);
       if (!parsedResponse.success) {
         if (parsedResponse.reason === "invalid_json") {
-          console.error("agent/score: parse failure (json)", parsedResponse.error);
-          return NextResponse.json({ error: "parse_error", rawText: parsedResponse.rawText }, { status: 500 });
+          console.error("agent/score: parse failure (json)", parsedResponse.error, {
+            rawText: parsedResponse.rawText,
+          });
+          return NextResponse.json(
+            { error: "parse_error", message: "Failed to parse AI JSON output" },
+            { status: 500 },
+          );
         }
 
         console.error("agent/score: parse failure (shape)", parsedResponse.issues);
