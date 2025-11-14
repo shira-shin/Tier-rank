@@ -30,6 +30,7 @@ const scoreRequestSchema = z.object({
   options: z
     .object({
       tiers: z.array(z.string().min(1)).min(1).max(10).optional(),
+      useWebSearch: z.boolean().optional(),
     })
     .optional(),
 });
@@ -57,6 +58,14 @@ const scoreEntrySchema = z.object({
 const scoreResponseSchema = z.object({
   tiers: z.array(tierResultSchema),
   scores: z.array(scoreEntrySchema),
+  sources: z
+    .array(
+      z.object({
+        id: z.string(),
+        urls: z.array(z.string().url()).min(1).max(5),
+      }),
+    )
+    .optional(),
 });
 
 type ScoreRequest = z.infer<typeof scoreRequestSchema>;
@@ -82,11 +91,27 @@ function clampScore(value?: number): number {
   return value;
 }
 
-function buildPrompt(projectName: string, projectDescription: string | null, body: ScoreRequest) {
-  const tierList = body.options?.tiers?.length ? body.options.tiers : ["S", "A", "B", "C"];
-  const header = `あなたは評価エージェントです。候補と指標に基づきティア表とスコアリングを行います。次に示すJSON形式のみを返してください。前後に説明文やコードブロック(\`\`\`json など)を付けてはいけません。ティアは ${tierList.join(", ")} の順序で使用し、すべての候補に0から1(小数第3位まで)のスコアと簡潔な日本語の理由を付与してください。`;
+function dedupeUrls(urls: string[]): string[] {
+  return Array.from(new Set(urls.map((url) => url.trim()).filter((url) => url.length > 0)));
+}
 
-  const schemaInstruction = [
+function buildPrompt(projectName: string, projectDescription: string | null, body: ScoreRequest, useWebSearch: boolean) {
+  const tierList = body.options?.tiers?.length ? body.options.tiers : ["S", "A", "B", "C"];
+  const headerParts = [
+    "あなたは評価エージェントです。候補と指標に基づきティア表とスコアリングを行います。",
+    "次に示すJSON形式のみを返してください。前後に説明文やコードブロック(\\`\\`\\`json など)を付けてはいけません。",
+    `ティアは ${tierList.join(", ")} の順序で使用し、すべての候補に0から1(小数第3位まで)のスコアと簡潔な日本語の理由を付与してください。`,
+  ];
+  if (useWebSearch) {
+    headerParts.push(
+      "必要に応じて web_search ツールを使って最新情報を調べ、参照した情報源のURLを sources 配列にまとめてください。",
+    );
+  } else {
+    headerParts.push("外部検索が利用できない場合は、提供された情報を基に最良の推定を行ってください。");
+  }
+  const header = headerParts.join(" ");
+
+  const schemaInstructionLines = [
     "出力フォーマット:",
     "{",
     '  "tiers": [',
@@ -99,6 +124,9 @@ function buildPrompt(projectName: string, projectDescription: string | null, bod
     '  ],',
     '  "scores": [',
     '    { "id": "candidate_id", "name": "候補名", "score": 0.85, "tier": "S", "reasons": "理由" }',
+    '  ],',
+    '  "sources": [',
+    '    { "id": "candidate_id", "urls": ["https://example.com"] }',
     '  ]',
     "}",
     "",
@@ -106,7 +134,13 @@ function buildPrompt(projectName: string, projectDescription: string | null, bod
     "- 有効なJSONのみを返す",
     "- 文字列は必ずダブルクォートで囲む",
     "- コメントや余計なキーを追加しない",
-  ].join("\n");
+    "- sources フィールドは任意で、根拠URLがある候補のみ含める",
+    "- 各候補のURLは1〜3件まで、https:// から始まる完全なリンクを使用する",
+  ];
+  if (useWebSearch) {
+    schemaInstructionLines.push("- web_search ツールで得た情報源を sources に整理する");
+  }
+  const schemaInstruction = schemaInstructionLines.join("\n");
 
   const projectContext = {
     project: {
@@ -116,6 +150,9 @@ function buildPrompt(projectName: string, projectDescription: string | null, bod
     tierOptions: tierList,
     candidates: body.candidates,
     criteria: body.criteria,
+    settings: {
+      useWebSearch,
+    },
   };
 
   return [
@@ -123,8 +160,9 @@ function buildPrompt(projectName: string, projectDescription: string | null, bod
     { role: "user" as const, content: schemaInstruction },
     {
       role: "user" as const,
-      content:
-        "Rank the candidates using the criteria. Use every candidate exactly once in scores. Group the tier sections using the requested tier order. Provide concise Japanese reasons (<=160 chars).",
+      content: useWebSearch
+        ? "Rank the candidates using the criteria. When you need external information, call the web_search tool, then base your decision on the findings. Use every candidate exactly once in scores. Group the tier sections using the requested tier order. Provide concise Japanese reasons (<=160 chars) and make sure any insights drawn from web_search have URLs captured in the sources array."
+        : "Rank the candidates using the criteria. Use every candidate exactly once in scores. Group the tier sections using the requested tier order. Provide concise Japanese reasons (<=160 chars).",
     },
     { role: "user" as const, content: JSON.stringify(projectContext) },
   ];
@@ -226,6 +264,9 @@ type ResponsesPayload = {
   model: string;
   input: ReturnType<typeof formatMessagesForResponses>;
   modalities?: string[];
+  max_output_tokens?: number;
+  tools?: { type: string; [key: string]: unknown }[];
+  tool_choice?: "auto" | "none" | Record<string, unknown>;
 };
 
 class OpenAI {
@@ -375,9 +416,21 @@ function normaliseResponse(body: ScoreRequest, payload: ScoreResponse): ScoreRes
     pushTier(entry.tier);
   }
 
+  const normalisedSources = Array.isArray(payload.sources)
+    ? payload.sources
+        .map((entry) => {
+          if (!entries.has(entry.id)) return null;
+          const urls = dedupeUrls(entry.urls ?? []);
+          if (!urls.length) return null;
+          return { id: entry.id, urls };
+        })
+        .filter((value): value is { id: string; urls: string[] } => value !== null)
+    : [];
+
   return {
     tiers: tierResults,
     scores: sortedScores,
+    ...(normalisedSources.length ? { sources: normalisedSources } : {}),
   };
 }
 
@@ -415,28 +468,52 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
 
     const body = parsedBody.data;
+    const useWebSearch = body.options?.useWebSearch === true;
 
     if (!body.candidates?.length || !body.criteria?.length) {
       return NextResponse.json({ error: "Candidates and criteria are required" }, { status: 400 });
     }
 
     console.log("agent/score: request body", body);
+    console.info("agent/score: useWebSearch", useWebSearch);
 
-    const messages = buildPrompt(project.name, project.description, body);
+    const messages = buildPrompt(project.name, project.description, body, useWebSearch);
     const formattedInput = formatMessagesForResponses(messages);
     const client = new OpenAI({ apiKey });
+    const tools = useWebSearch ? [{ type: "web_search" as const }] : [];
+    console.info("agent/score: tools", tools);
 
     try {
-      const response = await client.responses.create({
+      const requestPayload: ResponsesPayload = {
         model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
         input: formattedInput,
+        max_output_tokens: 2048,
+        tool_choice: tools.length ? "auto" : "none",
+        ...(tools.length ? { tools } : {}),
+      };
+
+      console.info("agent/score: openai request", {
+        model: requestPayload.model,
+        tool_choice: requestPayload.tool_choice,
+        tools: tools.map((tool) => tool.type),
       });
+
+      const response = await client.responses.create(requestPayload);
 
       console.log("agent/score: openai response", {
         id: response?.id ?? null,
         status: response?.status ?? null,
         usage: response?.usage ?? null,
       });
+
+      const toolEvents = Array.isArray(response?.output)
+        ? response.output.flatMap((item) =>
+            (item.content ?? [])
+              .filter((content) => content?.type && content.type !== "output_text")
+              .map((content) => content.type),
+          )
+        : [];
+      console.info("agent/score: response tool events", toolEvents);
 
       const textOutput = extractOutputText(response) ?? "";
 

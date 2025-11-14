@@ -42,6 +42,7 @@ export type ScoreRequest = {
   criteria: Criterion[];
   options?: {
     tiers?: string[];
+    useWebSearch?: boolean;
   };
 };
 
@@ -81,5 +82,9 @@ export type ScoreResponse = {
     score: number;
     tier: string;
     reasons?: string;
+  }[];
+  sources?: {
+    id: string;
+    urls: string[];
   }[];
 };

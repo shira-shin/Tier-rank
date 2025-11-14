@@ -108,12 +108,19 @@ function buildDummyScope(names: string[]) {
 
 function convertScoreResponseToAgentResult(response: ScoreResponse | undefined): AgentResult | undefined {
   if (!response) return undefined;
+  const sourceMap = new Map(
+    (response.sources ?? []).map((entry) => {
+      const uniqueUrls = Array.from(new Set((entry.urls ?? []).map((url) => url.trim()).filter(Boolean)));
+      return [entry.id, uniqueUrls];
+    }),
+  );
   return {
     items: response.scores.map((entry) => ({
       id: entry.id,
       score: entry.score,
       tier: entry.tier,
       reason: entry.reasons,
+      sources: (sourceMap.get(entry.id) ?? []).map((url) => ({ url, title: url })),
     })),
   };
 }
@@ -366,6 +373,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
       criteria: normalizedCriteria,
       options: {
         tiers: DEFAULT_TIER_LABELS,
+        ...(useWeb ? { useWebSearch: true } : {}),
       },
     };
 
