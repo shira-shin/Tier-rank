@@ -61,6 +61,7 @@ const scoreResponseSchema = z.object({
 
 type ScoreRequest = z.infer<typeof scoreRequestSchema>;
 type ScoreResponse = z.infer<typeof scoreResponseSchema>;
+type AgentScoreResponse = ScoreResponsePayload;
 
 type EnsureTrue<T extends true> = T;
 type _EnsureRequestCompatible = EnsureTrue<
@@ -124,25 +125,56 @@ function formatMessagesForResponses(messages: PromptMessages) {
   }));
 }
 
-function safeParseJson(value: string | null | undefined) {
-  if (!value) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
-}
+type ParseScoreResponseFailure =
+  | { success: false; reason: "invalid_json"; rawText: string; error: unknown }
+  | { success: false; reason: "invalid_shape"; rawText: string; issues: z.ZodIssue[] };
 
-function parseScoreResponsePayload(value: string) {
+type ParseScoreResponseResult = { success: true; data: ScoreResponse } | ParseScoreResponseFailure;
+
+type OpenAIResponseUsage = {
+  total_tokens?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+};
+
+type OpenAIOutputContent =
+  | { type: "output_text"; text: string }
+  | { type: string; [key: string]: unknown };
+
+type OpenAIOutputItem = {
+  role?: string;
+  content?: OpenAIOutputContent[];
+};
+
+type OpenAIResponsePayload = {
+  id?: string;
+  status?: string;
+  usage?: OpenAIResponseUsage;
+  output_text?: string;
+  output?: OpenAIOutputItem[];
+  [key: string]: unknown;
+};
+
+function parseScoreResponsePayload(value: string): ParseScoreResponseResult {
   try {
     const parsed = JSON.parse(value);
     const schemaResult = scoreResponseSchema.safeParse(parsed);
     if (!schemaResult.success) {
-      return { success: false as const, error: schemaResult.error, details: value };
+      return {
+        success: false,
+        reason: "invalid_shape",
+        rawText: value,
+        issues: schemaResult.error.issues,
+      };
     }
-    return { success: true as const, data: schemaResult.data };
+    return { success: true, data: schemaResult.data };
   } catch (error) {
-    return { success: false as const, error, details: value };
+    return {
+      success: false,
+      reason: "invalid_json",
+      rawText: value,
+      error,
+    };
   }
 }
 
@@ -162,7 +194,7 @@ class OpenAI {
     this.apiKey = options.apiKey;
   }
 
-  private async createResponse(payload: ResponsesPayload) {
+  private async createResponse(payload: ResponsesPayload): Promise<OpenAIResponsePayload> {
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -176,16 +208,65 @@ class OpenAI {
 
     if (!response.ok) {
       const error = new Error(`OpenAI response error: ${response.status} ${response.statusText}`);
-      (error as any).response = { status: response.status, data: safeParseJson(rawText) };
+      (error as any).response = {
+        status: response.status,
+        data: safeParseJson(rawText),
+      };
       throw error;
     }
 
-    return rawText ? safeParseJson(rawText) : null;
+    if (!rawText) {
+      return {};
+    }
+
+    try {
+      const parsed = JSON.parse(rawText);
+      if (parsed && typeof parsed === "object") {
+        return parsed as OpenAIResponsePayload;
+      }
+      throw new Error("Invalid OpenAI response payload");
+    } catch (error) {
+      const parseError = new Error("Failed to parse OpenAI response payload");
+      (parseError as any).cause = error;
+      (parseError as any).response = { status: response.status, data: rawText };
+      throw parseError;
+    }
   }
 
   responses = {
     create: (payload: ResponsesPayload) => this.createResponse(payload),
   };
+}
+
+function safeParseJson(value: string | null | undefined) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function extractOutputText(response: OpenAIResponsePayload): string | null {
+  if (typeof response.output_text === "string" && response.output_text.trim().length > 0) {
+    return response.output_text.trim();
+  }
+
+  if (Array.isArray(response.output)) {
+    for (const item of response.output) {
+      if (!item?.content) continue;
+      for (const content of item.content) {
+        if (content && content.type === "output_text" && typeof content.text === "string") {
+          const trimmed = content.text.trim();
+          if (trimmed) {
+            return trimmed;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 function normaliseResponse(body: ScoreRequest, payload: ScoreResponse): ScoreResponsePayload {
@@ -307,14 +388,13 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         input: formattedInput,
       });
 
-      console.log("agent/score: openai raw response", JSON.stringify(response));
+      console.log("agent/score: openai response", {
+        id: response?.id ?? null,
+        status: response?.status ?? null,
+        usage: response?.usage ?? null,
+      });
 
-      const textOutput =
-        response?.output_text?.trim?.() ||
-        response?.output
-          ?.flatMap((item: any) => item?.content ?? [])
-          .find((content: any) => content?.type === "output_text")?.text ||
-        "";
+      const textOutput = extractOutputText(response) ?? "";
 
       if (!textOutput) {
         console.error("agent/score: missing output text", response);
@@ -326,16 +406,25 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
       const parsedResponse = parseScoreResponsePayload(textOutput);
       if (!parsedResponse.success) {
-        console.error("agent/score: parse failure", parsedResponse.error, parsedResponse.details);
+        if (parsedResponse.reason === "invalid_json") {
+          console.error("agent/score: parse failure (json)", parsedResponse.error);
+          return NextResponse.json({ error: "parse_error", rawText: parsedResponse.rawText }, { status: 500 });
+        }
+
+        console.error("agent/score: parse failure (shape)", parsedResponse.issues);
         return NextResponse.json(
-          { error: "PARSE_ERROR", message: "Failed to parse OpenAI response", details: parsedResponse.details },
+          {
+            error: "invalid_response_shape",
+            message: "Failed to validate OpenAI response shape",
+            issues: parsedResponse.issues,
+          },
           { status: 500 },
         );
       }
 
       const normalised = normaliseResponse(body, parsedResponse.data);
 
-      return NextResponse.json(normalised, { status: 200 });
+      return NextResponse.json<AgentScoreResponse>(normalised, { status: 200 });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const responseData = (error as any)?.response?.data ?? null;
