@@ -283,14 +283,13 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     let parsedResponse: any;
     try {
       parsedResponse = await client.responses.create({
-        model: "gpt-4.1-mini",
-        modalities: ["text"],
+        model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
         input: formattedInput,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const responseData = (error as any)?.response?.data ?? null;
-      console.error("OpenAI API error", responseData, message);
+      console.error("OpenAI API error (agent/score)", responseData, message);
       return NextResponse.json({ error: "OpenAI API error", message, openai: responseData }, { status: 500 });
     }
 
