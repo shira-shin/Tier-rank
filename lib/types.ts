@@ -37,12 +37,18 @@ export type Criterion = {
   note?: string;
 };
 
+export type EvaluationStrictness = "lenient" | "balanced" | "strict";
+
+export type SearchDepth = "shallow" | "normal" | "deep";
+
 export type ScoreRequest = {
   candidates: Candidate[];
   criteria: Criterion[];
   options?: {
     tiers?: string[];
     useWebSearch?: boolean;
+    strictness?: EvaluationStrictness;
+    searchDepth?: SearchDepth;
   };
 };
 
@@ -53,6 +59,7 @@ export type AgentItem = {
   tier?: string;
   reason?: string;
   sources?: { url: string; title: string }[];
+  risk_notes?: string[];
 };
 
 export type AgentResult = {
@@ -97,6 +104,7 @@ export type ScoreRow = {
   top_criteria?: string[];
   criteria_breakdown: CriteriaBreakdownEntry[];
   sources?: SourceReference[];
+  risk_notes?: string[];
 };
 
 export type ScoreResponse = {

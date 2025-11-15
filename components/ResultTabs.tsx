@@ -33,6 +33,16 @@ function TierBadge({ tier }: { tier?: string }) {
   );
 }
 
+function getReadableDomain(url?: string | null) {
+  if (!url) return null;
+  try {
+    const { hostname } = new URL(url);
+    return hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
 export type ViewTab = "tier" | "rank" | "cards" | "radar" | "report" | "json";
 
 type ResultTabsProps = {
@@ -254,6 +264,13 @@ export default function ResultTabs({
                 const structuredEntry = scoreLookup?.get(entry.id);
                 const breakdownEntries = structuredEntry?.criteria_breakdown ?? [];
                 const sources = structuredEntry?.sources ?? [];
+                const riskNotesSource = structuredEntry?.risk_notes
+                  ?? (isScoreResponseEntry(entry) ? entry.risk_notes : (entry as AgentItem).risk_notes);
+                const riskNotes = Array.isArray(riskNotesSource)
+                  ? riskNotesSource
+                      .map((note) => (typeof note === "string" ? note.trim() : ""))
+                      .filter((note) => note.length > 0)
+                  : [];
                 const topCriteria = structuredEntry?.top_criteria?.length
                   ? structuredEntry.top_criteria
                   : breakdownEntries
@@ -338,8 +355,31 @@ export default function ResultTabs({
                         className="border-t border-emerald-200/60 bg-emerald-50/60 dark:border-emerald-800/60 dark:bg-emerald-950/40"
                       >
                         <td colSpan={5} className="px-4 py-4">
-                          <div className="space-y-3">
-                            <div>
+                          <div className="space-y-4">
+                            <section className="space-y-2">
+                              <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
+                                総評
+                              </div>
+                              {reasonText ? (
+                                <p className="text-sm text-slate-700 dark:text-slate-200">{reasonText}</p>
+                              ) : (
+                                <p className="text-xs text-text-muted">AIが総評を返しませんでした。</p>
+                              )}
+                              {topCriteria.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                  {topCriteria.map((criterion) => (
+                                    <span
+                                      key={`${entry.id}-summary-${criterion}`}
+                                      className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-200"
+                                    >
+                                      {criterion}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </section>
+
+                            <section className="space-y-2">
                               <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
                                 指標内訳
                               </div>
@@ -369,31 +409,62 @@ export default function ResultTabs({
                                   </table>
                                 </div>
                               )}
-                            </div>
-                            {sources.length > 0 && (
-                              <div>
-                                <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
-                                  参考URL
+                            </section>
+
+                            <section className="space-y-2">
+                              <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
+                                リスク・懸念点
+                              </div>
+                              {riskNotes.length === 0 ? (
+                                <div className="rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
+                                  特筆すべきリスクは検出されませんでした。
                                 </div>
-                                <ul className="mt-2 space-y-1 text-xs">
-                                  {sources.map((source) => (
-                                    <li key={source.url}>
-                                      <a
-                                        href={source.url}
-                                        target="_blank"
-                                        className="text-blue-600 hover:underline dark:text-sky-400"
-                                        rel="noreferrer"
-                                      >
-                                        {source.title?.trim() || source.url}
-                                      </a>
-                                      {source.note && (
-                                        <span className="ml-2 text-[11px] text-text-muted">{source.note}</span>
-                                      )}
+                              ) : (
+                                <ul className="space-y-1 text-xs text-slate-700 dark:text-slate-200">
+                                  {riskNotes.map((note, index) => (
+                                    <li key={`${entry.id}-risk-${index}`} className="flex items-start gap-2">
+                                      <span className="mt-0.5 text-emerald-600 dark:text-emerald-300">•</span>
+                                      <span className="leading-snug">{note}</span>
                                     </li>
                                   ))}
                                 </ul>
+                              )}
+                            </section>
+
+                            <section className="space-y-2">
+                              <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
+                                参考URL
                               </div>
-                            )}
+                              {sources.length > 0 ? (
+                                <ul className="mt-1 space-y-2 text-xs">
+                                  {sources.map((source) => {
+                                    const domain = getReadableDomain(source.url);
+                                    return (
+                                      <li key={source.url} className="space-y-1">
+                                        <a
+                                          href={source.url}
+                                          target="_blank"
+                                          className="inline-flex items-center gap-1 text-blue-600 hover:underline dark:text-sky-400"
+                                          rel="noreferrer"
+                                        >
+                                          <span>{source.title?.trim() || source.url}</span>
+                                        </a>
+                                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-text-muted">
+                                          {domain && (
+                                            <span className="rounded-full bg-slate-200/80 px-2 py-0.5 dark:bg-slate-800/70">
+                                              {domain}
+                                            </span>
+                                          )}
+                                          {source.note && <span>{source.note}</span>}
+                                        </div>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              ) : (
+                                <div className="text-xs text-text-muted">外部参照はありません。</div>
+                              )}
+                            </section>
                           </div>
                         </td>
                       </tr>
@@ -408,70 +479,115 @@ export default function ResultTabs({
 
       {tab === "cards" && (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {ranked.map((item) => (
-            <div
-              key={item.id}
-              className="space-y-3 rounded-xl border border-slate-200 bg-white/85 p-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/60"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <div className="font-semibold text-slate-900 dark:text-slate-100">{nameMap.get(item.id) ?? item.id}</div>
-                <TierBadge tier={item.tier} />
+          {ranked.map((item) => {
+            const structuredEntryCard = scoreLookup?.get(item.id);
+            const cardRiskNotesSource = structuredEntryCard?.risk_notes ?? item.risk_notes;
+            const cardRiskNotes = Array.isArray(cardRiskNotesSource)
+              ? cardRiskNotesSource
+                  .map((note) => (typeof note === "string" ? note.trim() : ""))
+                  .filter((note) => note.length > 0)
+              : [];
+            const cardSources = (
+              structuredEntryCard?.sources ??
+              (item.sources ?? []).map((source) => ({
+                url: source.url,
+                title: source.title,
+                note: undefined as string | undefined,
+              }))
+            ).filter((source) => source && typeof source.url === "string");
+
+            return (
+              <div
+                key={item.id}
+                className="space-y-3 rounded-xl border border-slate-200 bg-white/85 p-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/60"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="font-semibold text-slate-900 dark:text-slate-100">{nameMap.get(item.id) ?? item.id}</div>
+                  <TierBadge tier={item.tier} />
+                </div>
+                <div className="space-y-2 text-sm text-text-muted">
+                  <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-200">
+                    <span className="font-semibold">総合スコア</span>
+                    <span>{((item.score ?? 0) * 100).toFixed(1)}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-emerald-100 dark:bg-emerald-900/40">
+                    <div
+                      className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                      style={{ width: `${Math.max(0, Math.min(1, item.score ?? 0)) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                {item.reason && (
+                  <div className="rounded-lg border border-slate-200/80 bg-slate-50/60 p-3 text-sm leading-relaxed text-slate-800 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-100">
+                    {item.reason}
+                  </div>
+                )}
+                <div className="space-y-2 text-xs">
+                  <div className="font-semibold text-emerald-800 dark:text-emerald-200">指標別スコア</div>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(item.contrib ?? {}).length === 0 && (
+                      <span className="rounded bg-slate-200 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                        データ不足
+                      </span>
+                    )}
+                    {Object.entries(item.contrib ?? {})
+                      .map(([key, value]) => ({ key, value: Number(value) }))
+                      .filter((entry) => Number.isFinite(entry.value))
+                      .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+                      .map((entry) => {
+                        const token = metricColorMap.get(entry.key);
+                        return (
+                          <span
+                            key={entry.key}
+                            className={clsx("rounded-full px-3 py-1 font-semibold", token?.chipClass ?? "bg-emerald-100 text-emerald-800")}
+                          >
+                            {entry.key}: {(entry.value * 100).toFixed(1)}%
+                          </span>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {cardRiskNotes.length > 0 && (
+                  <div className="space-y-1 rounded-lg border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100">
+                    <div className="font-semibold">リスク・懸念点</div>
+                    <ul className="space-y-1 pt-1">
+                      {cardRiskNotes.slice(0, 4).map((note, index) => (
+                        <li key={`${item.id}-card-risk-${index}`} className="flex items-start gap-2">
+                          <span className="mt-0.5">•</span>
+                          <span className="leading-snug">{note}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {cardSources.length > 0 && (
+                  <div className="space-y-2 text-xs">
+                    <div className="font-semibold text-emerald-800 dark:text-emerald-200">参考URL</div>
+                    <ul className="space-y-1">
+                      {cardSources.slice(0, 3).map((source) => {
+                        const domain = getReadableDomain(source.url);
+                        return (
+                          <li key={source.url} className="space-y-0.5">
+                            <a className="text-blue-600 hover:underline dark:text-sky-400" href={source.url} target="_blank" rel="noreferrer">
+                              {source.title?.trim() || source.url}
+                            </a>
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-text-muted">
+                              {domain && (
+                                <span className="rounded-full bg-slate-200/80 px-2 py-0.5 dark:bg-slate-800/70">{domain}</span>
+                              )}
+                              {source.note && <span>{source.note}</span>}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
               </div>
-              <div className="space-y-2 text-sm text-text-muted">
-                <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-200">
-                  <span className="font-semibold">総合スコア</span>
-                  <span>{((item.score ?? 0) * 100).toFixed(1)}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-emerald-100 dark:bg-emerald-900/40">
-                  <div
-                    className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                    style={{ width: `${Math.max(0, Math.min(1, item.score ?? 0)) * 100}%` }}
-                  />
-                </div>
-              </div>
-              {item.reason && (
-                <div className="rounded-lg border border-slate-200/80 bg-slate-50/60 p-3 text-sm leading-relaxed text-slate-800 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-100">
-                  {item.reason}
-                </div>
-              )}
-              <div className="space-y-2 text-xs">
-                <div className="font-semibold text-emerald-800 dark:text-emerald-200">指標別スコア</div>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(item.contrib ?? {}).length === 0 && (
-                    <span className="rounded bg-slate-200 px-2 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-200">
-                      データ不足
-                    </span>
-                  )}
-                  {Object.entries(item.contrib ?? {})
-                    .map(([key, value]) => ({ key, value: Number(value) }))
-                    .filter((entry) => Number.isFinite(entry.value))
-                    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
-                    .map((entry) => {
-                      const token = metricColorMap.get(entry.key);
-                      return (
-                        <span
-                          key={entry.key}
-                          className={clsx("rounded-full px-3 py-1 font-semibold", token?.chipClass ?? "bg-emerald-100 text-emerald-800")}
-                        >
-                          {entry.key}: {(entry.value * 100).toFixed(1)}%
-                        </span>
-                      );
-                    })}
-                </div>
-              </div>
-              {item.sources?.length ? (
-                <ul className="mt-2 space-y-1 text-xs">
-                  {item.sources.slice(0, 3).map((source) => (
-                    <li key={source.url}>
-                      <a className="text-blue-600 hover:underline dark:text-sky-400" href={source.url} target="_blank">
-                        {source.title}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
