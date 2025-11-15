@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, type RefObject } from "react";
+import { Fragment, useMemo, useRef, useState, type RefObject } from "react";
 import clsx from "clsx";
 import {
   PolarAngleAxis,
@@ -59,9 +59,9 @@ export default function ResultTabs({
   const items: AgentItem[] = data?.items ?? [];
   const ranked = useMemo(() => [...items].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)), [items]);
   const tierResults = scoreResponse?.tiers ?? [];
-  const scoreEntries = useMemo(() => {
+  const scoreEntries = useMemo<(ScoreResponse["scores"][number] | AgentItem)[]>(() => {
     if (!scoreResponse) return ranked;
-    return [...scoreResponse.scores].sort((a, b) => b.score - a.score);
+    return [...scoreResponse.scores].sort((a, b) => b.total_score - a.total_score);
   }, [scoreResponse, ranked]);
   const scoreLookup = useMemo(() => {
     if (!scoreResponse) return undefined;
@@ -131,6 +131,8 @@ export default function ResultTabs({
     [ranked, nameMap],
   );
 
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
   return (
     <div ref={containerRef} className="flex h-full flex-col gap-4">
       {metricLegend.length > 0 && (
@@ -167,15 +169,25 @@ export default function ResultTabs({
                 </div>
                 <ul className="space-y-3">
                   {tierItems.map((item) => {
+                    const scoreEntry = scoreLookup?.get(item.id);
                     const scoreValue = scoreResponse
-                      ? Math.max(0, Math.min(1, scoreLookup?.get(item.id)?.score ?? (item as any).score ?? 0))
+                      ? Math.max(0, Math.min(1, scoreEntry?.total_score ?? (item as any).score ?? 0))
                       : Math.max(0, Math.min(1, (item as AgentItem).score ?? 0));
                     const label = scoreResponse
-                      ? (item as any).name || scoreLookup?.get(item.id)?.name || nameMap.get(item.id) || item.id
+                      ? scoreEntry?.name || (item as any).name || nameMap.get(item.id) || item.id
                       : nameMap.get(item.id) ?? (item as AgentItem).id;
                     const reasonText = scoreResponse
-                      ? (item as any).reasons ?? scoreLookup?.get(item.id)?.reasons
+                      ? scoreEntry?.main_reason || scoreEntry?.criteria_breakdown?.[0]?.reason
                       : (item as AgentItem).reason;
+                    const criteria = scoreResponse
+                      ? scoreEntry?.top_criteria?.length
+                        ? scoreEntry.top_criteria
+                        : (scoreEntry?.criteria_breakdown ?? [])
+                            .slice()
+                            .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+                            .slice(0, 3)
+                            .map((entry) => entry.key)
+                      : [];
                     return (
                       <li key={item.id} className="space-y-1 text-sm">
                         <div className="flex items-center justify-between gap-2">
@@ -193,6 +205,18 @@ export default function ResultTabs({
                           />
                         </div>
                         {reasonText && <p className="text-xs text-text-muted">{reasonText}</p>}
+                        {criteria.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {criteria.map((criterion) => (
+                              <span
+                                key={`${item.id}-${criterion}`}
+                                className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-200"
+                              >
+                                {criterion}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </li>
                     );
                   })}
@@ -219,10 +243,24 @@ export default function ResultTabs({
             <tbody>
               {scoreEntries.map((entry, idx) => {
                 const tier = (entry as any).tier ?? scoreLookup?.get(entry.id)?.tier;
-                const scoreValue = Math.max(0, Math.min(1, (entry as any).score ?? scoreLookup?.get(entry.id)?.score ?? 0));
+                const scoreValue = Math.max(
+                  0,
+                  Math.min(1, (entry as any).total_score ?? (entry as any).score ?? scoreLookup?.get(entry.id)?.total_score ?? 0),
+                );
                 const displayName =
                   (entry as any).name ?? scoreLookup?.get(entry.id)?.name ?? nameMap.get(entry.id) ?? entry.id;
-                const reasonText = (entry as any).reason ?? (entry as any).reasons ?? scoreLookup?.get(entry.id)?.reasons;
+                const reasonText =
+                  (entry as any).main_reason ?? (entry as any).reason ?? scoreLookup?.get(entry.id)?.main_reason;
+                const structuredEntry = scoreLookup?.get(entry.id);
+                const breakdownEntries = structuredEntry?.criteria_breakdown ?? [];
+                const sources = structuredEntry?.sources ?? [];
+                const topCriteria = structuredEntry?.top_criteria?.length
+                  ? structuredEntry.top_criteria
+                  : breakdownEntries
+                      .slice()
+                      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+                      .slice(0, 3)
+                      .map((item) => item.key);
                 const contribEntries = !scoreResponse
                   ? Object.entries((entry as AgentItem).contrib ?? {})
                       .map(([key, value]) => ({ key, value: Number(value) }))
@@ -230,45 +268,137 @@ export default function ResultTabs({
                       .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
                       .slice(0, 3)
                   : [];
+                const isExpanded = expandedRow === entry.id;
                 return (
-                  <tr key={entry.id} className="border-t border-slate-200/70 dark:border-slate-700/60">
-                    <td className="px-3 py-3 font-semibold text-slate-600 dark:text-slate-300">{idx + 1}</td>
-                    <td className="px-3 py-3">
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{displayName}</div>
-                      <div className="text-xs text-text-muted">{entry.id}</div>
-                    </td>
-                    <td className="px-3 py-3">
-                      <TierBadge tier={tier} />
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        {contribEntries.length === 0 && <span className="text-xs text-text-muted">データ不足</span>}
-                        {contribEntries.map((tokenEntry) => {
-                          const token = metricColorMap.get(tokenEntry.key);
-                          return (
-                            <span
-                              key={tokenEntry.key}
-                              className={clsx("rounded-full px-3 py-1 text-xs font-semibold", token?.chipClass ?? "bg-emerald-100 text-emerald-800")}
-                            >
-                              {tokenEntry.key}: {(tokenEntry.value * 100).toFixed(0)}%
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">{(scoreValue * 100).toFixed(1)}%</span>
-                        <div className="h-2 w-32 rounded-full bg-emerald-100 dark:bg-emerald-900/40">
-                          <div
-                            className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                            style={{ width: `${scoreValue * 100}%` }}
-                          />
+                  <Fragment key={entry.id}>
+                    <tr
+                      className={clsx(
+                        "border-t border-slate-200/70 transition hover:bg-emerald-50/40 dark:border-slate-700/60 dark:hover:bg-emerald-900/20",
+                        scoreResponse ? "cursor-pointer" : undefined,
+                      )}
+                      onClick={
+                        scoreResponse ? () => setExpandedRow((prev) => (prev === entry.id ? null : entry.id)) : undefined
+                      }
+                    >
+                      <td className="px-3 py-3 font-semibold text-slate-600 dark:text-slate-300">{idx + 1}</td>
+                      <td className="px-3 py-3">
+                        <div className="font-medium text-slate-900 dark:text-slate-100">{displayName}</div>
+                        <div className="text-xs text-text-muted">{entry.id}</div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <TierBadge tier={tier} />
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {scoreResponse ? (
+                            topCriteria.length > 0 ? (
+                              topCriteria.map((criterion) => (
+                                <span
+                                  key={`${entry.id}-${criterion}`}
+                                  className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-200"
+                                >
+                                  {criterion}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-text-muted">データ不足</span>
+                            )
+                          ) : contribEntries.length === 0 ? (
+                            <span className="text-xs text-text-muted">データ不足</span>
+                          ) : (
+                            contribEntries.map((tokenEntry) => {
+                              const token = metricColorMap.get(tokenEntry.key);
+                              return (
+                                <span
+                                  key={tokenEntry.key}
+                                  className={clsx("rounded-full px-3 py-1 text-xs font-semibold", token?.chipClass ?? "bg-emerald-100 text-emerald-800")}
+                                >
+                                  {tokenEntry.key}: {(tokenEntry.value * 100).toFixed(0)}%
+                                </span>
+                              );
+                            })
+                          )}
                         </div>
-                        {reasonText && <span className="self-start text-xs text-text-muted">{reasonText}</span>}
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">{(scoreValue * 100).toFixed(1)}%</span>
+                          <div className="h-2 w-32 rounded-full bg-emerald-100 dark:bg-emerald-900/40">
+                            <div
+                              className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                              style={{ width: `${scoreValue * 100}%` }}
+                            />
+                          </div>
+                          {reasonText && <span className="self-start text-xs text-text-muted">{reasonText}</span>}
+                        </div>
+                      </td>
+                    </tr>
+                    {scoreResponse && isExpanded && (
+                      <tr
+                        className="border-t border-emerald-200/60 bg-emerald-50/60 dark:border-emerald-800/60 dark:bg-emerald-950/40"
+                      >
+                        <td colSpan={5} className="px-4 py-4">
+                          <div className="space-y-3">
+                            <div>
+                              <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
+                                指標内訳
+                              </div>
+                              {breakdownEntries.length === 0 ? (
+                                <div className="text-xs text-text-muted">AIが指標ごとのスコアを返しませんでした。</div>
+                              ) : (
+                                <div className="overflow-hidden rounded-lg border border-emerald-200/60 bg-white/80 text-xs dark:border-emerald-800/60 dark:bg-slate-900/80">
+                                  <table className="min-w-full text-left">
+                                    <thead className="bg-emerald-100/70 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100">
+                                      <tr>
+                                        <th className="px-3 py-2">指標</th>
+                                        <th className="px-3 py-2">重み</th>
+                                        <th className="px-3 py-2">スコア</th>
+                                        <th className="px-3 py-2">理由</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {breakdownEntries.map((item) => (
+                                        <tr key={`${entry.id}-${item.key}`} className="border-t border-emerald-200/60 dark:border-emerald-800/60">
+                                          <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">{item.key}</td>
+                                          <td className="px-3 py-2">{item.weight}</td>
+                                          <td className="px-3 py-2">{(Math.max(0, Math.min(1, item.score)) * 100).toFixed(1)}%</td>
+                                          <td className="px-3 py-2 text-slate-700 dark:text-slate-200">{item.reason}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                            {sources.length > 0 && (
+                              <div>
+                                <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
+                                  参考URL
+                                </div>
+                                <ul className="mt-2 space-y-1 text-xs">
+                                  {sources.map((source) => (
+                                    <li key={source.url}>
+                                      <a
+                                        href={source.url}
+                                        target="_blank"
+                                        className="text-blue-600 hover:underline dark:text-sky-400"
+                                        rel="noreferrer"
+                                      >
+                                        {source.title?.trim() || source.url}
+                                      </a>
+                                      {source.note && (
+                                        <span className="ml-2 text-[11px] text-text-muted">{source.note}</span>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

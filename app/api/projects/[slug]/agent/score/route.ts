@@ -35,11 +35,25 @@ const scoreRequestSchema = z.object({
     .optional(),
 });
 
+const sourceEntrySchema = z.object({
+  url: z.string().url(),
+  title: z.string().min(1).optional(),
+  note: z.string().min(1).optional(),
+});
+
+const criteriaBreakdownSchema = z.object({
+  key: z.string().min(1),
+  score: z.number(),
+  weight: z.number(),
+  reason: z.string().min(1),
+});
+
 const tierItemSchema = z.object({
   id: z.string(),
   name: z.string(),
   score: z.number(),
-  reasons: z.string().optional(),
+  main_reason: z.string().optional(),
+  top_criteria: z.array(z.string().min(1)).min(1).max(5).optional(),
 });
 
 const tierResultSchema = z.object({
@@ -50,22 +64,17 @@ const tierResultSchema = z.object({
 const scoreEntrySchema = z.object({
   id: z.string(),
   name: z.string(),
-  score: z.number(),
+  total_score: z.number(),
   tier: z.string(),
-  reasons: z.string().optional(),
+  main_reason: z.string().optional(),
+  top_criteria: z.array(z.string().min(1)).min(1).max(5).optional(),
+  criteria_breakdown: z.array(criteriaBreakdownSchema).min(1).max(20),
+  sources: z.array(sourceEntrySchema).optional(),
 });
 
 const scoreResponseSchema = z.object({
   tiers: z.array(tierResultSchema),
   scores: z.array(scoreEntrySchema),
-  sources: z
-    .array(
-      z.object({
-        id: z.string(),
-        urls: z.array(z.string().url()).min(1).max(5),
-      }),
-    )
-    .optional(),
 });
 
 type ScoreRequest = z.infer<typeof scoreRequestSchema>;
@@ -91,54 +100,72 @@ function clampScore(value?: number): number {
   return value;
 }
 
-function dedupeUrls(urls: string[]): string[] {
-  return Array.from(new Set(urls.map((url) => url.trim()).filter((url) => url.length > 0)));
-}
-
 function buildPrompt(projectName: string, projectDescription: string | null, body: ScoreRequest, useWebSearch: boolean) {
   const tierList = body.options?.tiers?.length ? body.options.tiers : ["S", "A", "B", "C"];
   const headerParts = [
-    "あなたは評価エージェントです。候補と指標に基づきティア表とスコアリングを行います。",
-    "次に示すJSON形式のみを返してください。前後に説明文やコードブロック(\\`\\`\\`json など)を付けてはいけません。",
-    `ティアは ${tierList.join(", ")} の順序で使用し、すべての候補に0から1(小数第3位まで)のスコアと簡潔な日本語の理由を付与してください。`,
+    "あなたは評価エージェントです。候補と評価指標をもとに最新の情報を調べ、ティア表と詳細スコアを作成します。",
+    "指定されたJSON構造のみを返し、前後に説明文やコードブロック（```json など）を付けてはいけません。",
+    `ティアは ${tierList.join(" > ")} の順序で使用し、各候補に0〜1（小数第3位まで）の総合スコアと主要理由を付けてください。`,
+    "top_criteria には特に重要だった指標名を2〜3件挙げてください。",
   ];
   if (useWebSearch) {
     headerParts.push(
-      "必要に応じて web_search ツールを使って最新情報を調べ、参照した情報源のURLを sources 配列にまとめてください。",
+      "必要に応じて web_search ツールを呼び出し、最新の公開情報から労働環境・給与水準・将来性などを確認してください。",
     );
+    headerParts.push("検索で得た情報のURLを候補ごとに1〜3件、sources 配列に必ず記録してください。");
   } else {
-    headerParts.push("外部検索が利用できない場合は、提供された情報を基に最良の推定を行ってください。");
+    headerParts.push("外部検索が使えない場合は、提供された情報を基に最良の推定を行ってください。");
   }
   const header = headerParts.join(" ");
 
   const schemaInstructionLines = [
-    "出力フォーマット:",
+    "出力フォーマットは次のJSON構造のみです（余計な文字を追加しない）:",
     "{",
     '  "tiers": [',
     '    {',
     '      "label": "S",',
     '      "items": [',
-    '        { "id": "candidate_id", "name": "候補名", "score": 0.85, "reasons": "理由" }',
+    '        {',
+    '          "id": "A",',
+    '          "name": "住友生命",',
+    '          "score": 0.85,',
+    '          "main_reason": "労働環境と将来性が特に高評価",',
+    '          "top_criteria": ["労働環境", "将来性"]',
+    '        }',
     '      ]',
     '    }',
     '  ],',
     '  "scores": [',
-    '    { "id": "candidate_id", "name": "候補名", "score": 0.85, "tier": "S", "reasons": "理由" }',
-    '  ],',
-    '  "sources": [',
-    '    { "id": "candidate_id", "urls": ["https://example.com"] }',
+    '    {',
+    '      "id": "A",',
+    '      "name": "住友生命",',
+    '      "total_score": 0.85,',
+    '      "tier": "S",',
+    '      "main_reason": "労働環境と将来性が特に高評価",',
+    '      "top_criteria": ["労働環境", "将来性"],',
+    '      "criteria_breakdown": [',
+    '        { "key": "労働環境", "score": 0.90, "weight": 4, "reason": "残業時間の短さ・柔軟な働き方が評価" },',
+    '        { "key": "給与水準", "score": 0.80, "weight": 3, "reason": "同業種平均よりやや高い水準" },',
+    '        { "key": "将来性", "score": 0.88, "weight": 5, "reason": "デジタル化と新規事業が進展" }',
+    '      ],',
+    '      "sources": [',
+    '        { "url": "https://example.com/...", "title": "企業Aの働き方改革に関する記事", "note": "労働環境の改善事例" }',
+    '      ]',
+    '    }',
     '  ]',
     "}",
     "",
     "制約:",
-    "- 有効なJSONのみを返す",
-    "- 文字列は必ずダブルクォートで囲む",
-    "- コメントや余計なキーを追加しない",
-    "- sources フィールドは任意で、根拠URLがある候補のみ含める",
-    "- 各候補のURLは1〜3件まで、https:// から始まる完全なリンクを使用する",
+    "- 有効なJSONオブジェクトのみを返す（前後に余計な文字を出力しない）",
+    "- scores 配列にはすべての候補を1回ずつ含める",
+    "- score / total_score / criteria_breakdown[].score は0〜1の数値（小数第3位まで）",
+    "- criteria_breakdown は入力された評価指標ごとに日本語で理由をまとめる",
+    "- tier は指定された順序を尊重し、候補ごとに1つだけ設定する",
+    "- sources には候補ごとに1〜3件のURLのみを含め、title と note は必要に応じて簡潔に記載する",
+    "- ここに記載されていないキーを追加しない",
   ];
   if (useWebSearch) {
-    schemaInstructionLines.push("- web_search ツールで得た情報源を sources に整理する");
+    schemaInstructionLines.push("- web_search ツールで得た最新情報のみを根拠として引用する");
   }
   const schemaInstruction = schemaInstructionLines.join("\n");
 
@@ -155,15 +182,14 @@ function buildPrompt(projectName: string, projectDescription: string | null, bod
     },
   };
 
+  const evaluationInstruction = useWebSearch
+    ? "各候補を評価指標に基づいて比較し、外部情報が必要な場合は web_search ツールを呼び出して最新の公開情報を確認してください。検索で得た内容を根拠にスコアと理由をまとめ、参照したURLを必ず sources に含めてください。"
+    : "各候補を評価指標に基づいて比較し、提供された情報のみから最良の推定を行ってください。理由は簡潔な日本語でまとめてください。";
+
   return [
     { role: "system" as const, content: header },
     { role: "user" as const, content: schemaInstruction },
-    {
-      role: "user" as const,
-      content: useWebSearch
-        ? "Rank the candidates using the criteria. When you need external information, call the web_search tool, then base your decision on the findings. Use every candidate exactly once in scores. Group the tier sections using the requested tier order. Provide concise Japanese reasons (<=160 chars) and make sure any insights drawn from web_search have URLs captured in the sources array."
-        : "Rank the candidates using the criteria. Use every candidate exactly once in scores. Group the tier sections using the requested tier order. Provide concise Japanese reasons (<=160 chars).",
-    },
+    { role: "user" as const, content: evaluationInstruction },
     { role: "user" as const, content: JSON.stringify(projectContext) },
   ];
 }
@@ -354,52 +380,141 @@ function extractOutputText(response: OpenAIResponsePayload): string | null {
   return null;
 }
 
+function normaliseSources(
+  sources: ScoreResponse["scores"][number]["sources"] | undefined,
+): NonNullable<ScoreResponsePayload["scores"][number]["sources"]> {
+  if (!Array.isArray(sources)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const results: NonNullable<ScoreResponsePayload["scores"][number]["sources"]> = [];
+  for (const source of sources) {
+    if (!source || typeof source.url !== "string") continue;
+    const url = source.url.trim();
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    const normalised: NonNullable<ScoreResponsePayload["scores"][number]["sources"]>[number] = { url };
+    if (typeof source.title === "string" && source.title.trim()) {
+      normalised.title = source.title.trim();
+    }
+    if (typeof source.note === "string" && source.note.trim()) {
+      normalised.note = source.note.trim();
+    }
+    results.push(normalised);
+    if (results.length >= 3) break;
+  }
+  return results;
+}
+
 function normaliseResponse(body: ScoreRequest, payload: ScoreResponse): ScoreResponsePayload {
   const candidateMap = new Map(body.candidates.map((candidate) => [candidate.id, candidate]));
-  const preferredTiers = payload.tiers.map((tier) => tier.label);
-  const fallbackTiers = body.options?.tiers ?? preferredTiers;
+  const criteriaByKey = new Map(body.criteria.map((criterion) => [criterion.key, criterion]));
+  const criteriaByLabel = new Map(body.criteria.map((criterion) => [criterion.label, criterion]));
+  const preferredTiers = payload.tiers.map((tier) => tier.label?.trim()).filter((label): label is string => Boolean(label));
+  const fallbackTiers = body.options?.tiers?.map((tier) => tier.trim()).filter((tier) => tier.length > 0) ?? [];
   const tierOrder = preferredTiers.length ? preferredTiers : fallbackTiers;
+  const finalTierOrder = tierOrder.length ? tierOrder : ["S", "A", "B", "C"];
+  const fallbackTierLabel = finalTierOrder[finalTierOrder.length - 1] ?? "C";
+  const createFallbackBreakdown = () =>
+    body.criteria.map((criterion) => ({
+      key: criterion.label,
+      score: 0,
+      weight: criterion.weight,
+      reason: "十分な情報が不足しています。",
+    }));
 
-  const entries = new Map<string, ScoreResponse["scores"][number]>();
+  const entries = new Map<string, ScoreResponsePayload["scores"][number]>();
+
   for (const entry of payload.scores) {
-    const base = candidateMap.get(entry.id);
-    const name = entry.name?.trim() || base?.name || entry.id;
-    const tier = entry.tier?.trim() || tierOrder[0] || "S";
-    const reasons = entry.reasons?.trim() || undefined;
+    const baseCandidate = candidateMap.get(entry.id);
+    const name = entry.name?.trim() || baseCandidate?.name || entry.id;
+    const tier = entry.tier?.trim() || finalTierOrder[0] || "S";
+    const rawBreakdown = Array.isArray(entry.criteria_breakdown) ? entry.criteria_breakdown : [];
+    const breakdown = rawBreakdown
+      .map((item) => {
+        const key = item.key?.trim();
+        const reason = item.reason?.trim();
+        if (!key || !reason) return null;
+        const matchedCriterion = criteriaByKey.get(key) ?? criteriaByLabel.get(key) ?? null;
+        const label = matchedCriterion?.label?.trim() || key;
+        const weight = Number.isFinite(item.weight) ? Number(item.weight) : matchedCriterion?.weight ?? 1;
+        return {
+          key: label,
+          score: clampScore(item.score),
+          weight: weight,
+          reason,
+        };
+      })
+      .filter((value): value is ScoreResponsePayload["scores"][number]["criteria_breakdown"][number] => value !== null);
+
+    const fallbackBreakdown = createFallbackBreakdown();
+
+    const normalisedBreakdown = breakdown.length ? breakdown : fallbackBreakdown;
+
+    const providedTopCriteria = Array.isArray(entry.top_criteria)
+      ? Array.from(new Set(entry.top_criteria.map((value) => value?.trim()).filter((value): value is string => Boolean(value))))
+      : [];
+
+    const calculatedTopCriteria = normalisedBreakdown
+      .slice()
+      .sort((a, b) => b.score * b.weight - a.score * a.weight)
+      .map((item) => item.key)
+      .filter((key) => key.length > 0)
+      .slice(0, 3);
+
+    const sources = normaliseSources(entry.sources);
+
+    const mainReason = entry.main_reason?.trim() || normalisedBreakdown[0]?.reason || undefined;
+
+    const combinedTopCriteria = providedTopCriteria.length ? providedTopCriteria : calculatedTopCriteria;
+    const topCriteria = combinedTopCriteria.slice(0, 3).filter((value) => value.length > 0);
+
     entries.set(entry.id, {
       id: entry.id,
       name,
       tier,
-      score: clampScore(entry.score),
-      reasons,
+      total_score: clampScore(entry.total_score),
+      main_reason: mainReason,
+      top_criteria: topCriteria.length ? topCriteria : undefined,
+      criteria_breakdown: normalisedBreakdown,
+      ...(sources.length ? { sources } : {}),
     });
   }
 
-  const finalTierOrder = tierOrder.length ? tierOrder : ["S", "A", "B", "C"];
-  const fallbackTierLabel = finalTierOrder[finalTierOrder.length - 1] ?? "C";
-
   for (const candidate of body.candidates) {
     if (!entries.has(candidate.id)) {
+      const fallbackBreakdown = createFallbackBreakdown();
+      const fallbackTopCriteria = fallbackBreakdown
+        .slice(0, 3)
+        .map((item) => item.key)
+        .filter((value) => value.length > 0);
       entries.set(candidate.id, {
         id: candidate.id,
         name: candidate.name,
         tier: fallbackTierLabel,
-        score: 0,
-        reasons: undefined,
+        total_score: 0,
+        main_reason: "十分な情報が不足しているため推定した結果です。",
+        top_criteria: fallbackTopCriteria.length ? fallbackTopCriteria : undefined,
+        criteria_breakdown: fallbackBreakdown,
       });
     }
   }
 
-  const sortedScores = Array.from(entries.values()).sort((a, b) => b.score - a.score);
+  const sortedScores = Array.from(entries.values()).sort((a, b) => b.total_score - a.total_score);
 
+  const tierResults: ScoreResponsePayload["tiers"] = [];
   const seenTiers = new Set<string>();
-  const tierResults: ScoreResponse["tiers"] = [];
-
   const pushTier = (label: string) => {
     if (seenTiers.has(label)) return;
     const items = sortedScores
       .filter((entry) => entry.tier === label)
-      .map((entry) => ({ id: entry.id, name: entry.name, score: entry.score, reasons: entry.reasons }));
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        score: entry.total_score,
+        main_reason: entry.main_reason,
+        top_criteria: entry.top_criteria,
+      }));
     tierResults.push({ label, items });
     seenTiers.add(label);
   };
@@ -409,28 +524,21 @@ function normaliseResponse(body: ScoreRequest, payload: ScoreResponse): ScoreRes
   }
 
   for (const tier of payload.tiers) {
-    pushTier(tier.label);
+    if (tier?.label) {
+      pushTier(tier.label);
+    }
   }
 
   for (const entry of sortedScores) {
-    pushTier(entry.tier);
+    if (entry?.tier) {
+      pushTier(entry.tier);
+    }
   }
 
-  const normalisedSources = Array.isArray(payload.sources)
-    ? payload.sources
-        .map((entry) => {
-          if (!entries.has(entry.id)) return null;
-          const urls = dedupeUrls(entry.urls ?? []);
-          if (!urls.length) return null;
-          return { id: entry.id, urls };
-        })
-        .filter((value): value is { id: string; urls: string[] } => value !== null)
-    : [];
-
   return {
+    ok: true,
     tiers: tierResults,
     scores: sortedScores,
-    ...(normalisedSources.length ? { sources: normalisedSources } : {}),
   };
 }
 

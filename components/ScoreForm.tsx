@@ -106,22 +106,32 @@ function buildDummyScope(names: string[]) {
   return scope;
 }
 
+function clampScore(value?: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
+}
+
 function convertScoreResponseToAgentResult(response: ScoreResponse | undefined): AgentResult | undefined {
   if (!response) return undefined;
-  const sourceMap = new Map(
-    (response.sources ?? []).map((entry) => {
-      const uniqueUrls = Array.from(new Set((entry.urls ?? []).map((url) => url.trim()).filter(Boolean)));
-      return [entry.id, uniqueUrls];
-    }),
-  );
   return {
-    items: response.scores.map((entry) => ({
-      id: entry.id,
-      score: entry.score,
-      tier: entry.tier,
-      reason: entry.reasons,
-      sources: (sourceMap.get(entry.id) ?? []).map((url) => ({ url, title: url })),
-    })),
+    items: response.scores.map((entry) => {
+      const contrib = Object.fromEntries(
+        (entry.criteria_breakdown ?? []).map((breakdown) => [breakdown.key, clampScore(breakdown.score)]),
+      );
+      return {
+        id: entry.id,
+        score: clampScore(entry.total_score),
+        tier: entry.tier,
+        reason: entry.main_reason ?? entry.criteria_breakdown?.[0]?.reason,
+        contrib,
+        sources: (entry.sources ?? []).map((source) => ({
+          url: source.url,
+          title: source.title?.trim() || source.url,
+        })),
+      };
+    }),
   };
 }
 
@@ -137,7 +147,7 @@ type AgentResultItem = NonNullable<AgentResult["items"]>[number];
 function isScoreResponseEntry(
   entry: ScoreResponse["scores"][number] | AgentResultItem,
 ): entry is ScoreResponse["scores"][number] {
-  return "name" in entry;
+  return "total_score" in entry;
 }
 
 export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
@@ -542,8 +552,8 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
           id: item.id,
           name: item.name,
           tier: item.tier,
-          score: item.score,
-          reason: item.reasons,
+          score: item.total_score,
+          reason: item.main_reason ?? item.criteria_breakdown?.[0]?.reason,
         };
       }
       const fallbackName = items.find((candidate) => candidate.id === item.id)?.name ?? item.id;

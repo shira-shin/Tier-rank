@@ -62,11 +62,25 @@ export type AgentResult = {
   raw?: string;
 };
 
+export type SourceReference = {
+  url: string;
+  title?: string;
+  note?: string;
+};
+
+export type CriteriaBreakdownEntry = {
+  key: string;
+  score: number;
+  weight: number;
+  reason: string;
+};
+
 export type TierItemResult = {
   id: string;
   name: string;
   score: number;
-  reasons?: string;
+  main_reason?: string;
+  top_criteria?: string[];
 };
 
 export type TierResult = {
@@ -74,17 +88,19 @@ export type TierResult = {
   items: TierItemResult[];
 };
 
+export type ScoreRow = {
+  id: string;
+  name: string;
+  total_score: number;
+  tier: string;
+  main_reason?: string;
+  top_criteria?: string[];
+  criteria_breakdown: CriteriaBreakdownEntry[];
+  sources?: SourceReference[];
+};
+
 export type ScoreResponse = {
+  ok?: boolean;
   tiers: TierResult[];
-  scores: {
-    id: string;
-    name: string;
-    score: number;
-    tier: string;
-    reasons?: string;
-  }[];
-  sources?: {
-    id: string;
-    urls: string[];
-  }[];
+  scores: ScoreRow[];
 };
