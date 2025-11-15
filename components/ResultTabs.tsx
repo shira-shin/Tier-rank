@@ -14,6 +14,18 @@ import {
 import type { AgentItem, AgentResult, ItemInput, MetricInput, ScoreResponse } from "@/lib/types";
 import type { ReportSummary } from "@/lib/report";
 
+// Type guard to differentiate score response entries from agent items
+function isScoreResponseEntry(
+  entry: ScoreResponse["scores"][number] | AgentItem,
+): entry is ScoreResponse["scores"][number] {
+  return (
+    entry !== null &&
+    typeof entry === "object" &&
+    "total_score" in entry &&
+    "criteria_breakdown" in entry
+  );
+}
+
 function TierBadge({ tier }: { tier?: string }) {
   const map: Record<string, string> = {
     S: "from-purple-600 to-purple-500",
