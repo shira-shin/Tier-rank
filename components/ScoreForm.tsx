@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { DragDropContext, Draggable, Droppable, type DropResult } from "react-beautiful-dnd";
 import clsx from "clsx";
 import Segmented from "@/components/Segmented";
-import ResultTabs, { type ViewTab } from "@/components/ResultTabs";
+import ResultReport from "@/components/ResultReport";
 import type {
   AgentResult,
   Criterion,
@@ -187,7 +187,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AgentResult | undefined>();
   const [scoreResponse, setScoreResponse] = useState<ScoreResponse | undefined>();
-  const [tab, setTab] = useState<ViewTab>("tier");
+  const [view, setView] = useState<"editor" | "result">("editor");
   const [collapsedItems, setCollapsedItems] = useState<Record<string, boolean>>({});
   const [collapsedMetrics, setCollapsedMetrics] = useState<Record<string, boolean>>({});
   const [limitState, setLimitState] = useState<{
@@ -512,7 +512,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
       const converted = convertScoreResponseToAgentResult(structured);
       setScoreResponse(structured);
       setResult(converted);
-      setTab((prev) => (prev === "json" || prev === "report" ? prev : "tier"));
+      setView("result");
       if (historyEnabled) {
         const entry: HistoryEntry = {
           id: createHistoryId(),
@@ -570,6 +570,10 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
     return messages[code] ?? code;
   }
 
+  function exportAsJSON() {
+    exportJSON(result ?? {}, "tier-rank.json");
+  }
+
   function exportAsCSV() {
     const entries = scoreResponse?.scores ?? result?.items;
     if (!entries || entries.length === 0) return;
@@ -625,9 +629,12 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
     setSearchDepth(options.searchDepth ?? "normal");
     setItems(nextItems);
     setMetrics(nextMetrics);
+    const restoredResult = entry.result ?? convertScoreResponseToAgentResult(entry.scoreResponse);
     setScoreResponse(entry.scoreResponse);
-    setResult(entry.result ?? convertScoreResponseToAgentResult(entry.scoreResponse));
-    setTab("tier");
+    setResult(restoredResult);
+    if (entry.scoreResponse || restoredResult) {
+      setView("result");
+    }
   }
 
   function handleDeleteHistory(entryId: string) {
@@ -686,6 +693,101 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
     }
   }
 
+  const publishModal = publishOpen ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur">
+      <div className="w-[min(520px,92vw)] rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">ランキングを公開</h3>
+            <p className="text-sm text-text-muted">タイトルやタグを設定して公開ビューを作成します。</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPublishOpen(false)}
+            className="rounded-full border border-slate-200 px-2 py-1 text-sm text-slate-500 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            ✕
+          </button>
+        </div>
+        <form className="space-y-4" onSubmit={handlePublishSubmit}>
+          <div className="grid gap-4">
+            <label className="flex flex-col gap-2 text-sm">
+              <span className="font-semibold">タイトル</span>
+              <input
+                value={publishTitle}
+                onChange={(event) => setPublishTitle(event.target.value)}
+                placeholder="例：2024年 上半期ノートPCランキング"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              <span className="font-semibold">カテゴリ</span>
+              <input
+                value={publishCategory}
+                onChange={(event) => setPublishCategory(event.target.value)}
+                placeholder="例：ガジェット"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              <span className="font-semibold">タグ</span>
+              <input
+                value={publishTags}
+                onChange={(event) => setPublishTags(event.target.value)}
+                placeholder="カンマ区切りで入力 (例：ノートPC, 2024)"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              <span className="font-semibold">紹介文</span>
+              <textarea
+                value={publishSummary}
+                onChange={(event) => setPublishSummary(event.target.value)}
+                rows={4}
+                placeholder="ランキングの背景やポイントを短く紹介しましょう。"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+              />
+              <span className="text-xs text-text-muted">Markdown記法に対応し、安全なHTMLに自動変換されます。</span>
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              <span className="font-semibold">公開範囲</span>
+              <select
+                value={publishVisibility}
+                onChange={(event) => setPublishVisibility(event.target.value as PublishVisibility)}
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+              >
+                <option value="PUBLIC">公開（誰でも閲覧可能）</option>
+                <option value="UNLISTED">限定公開（リンクを知っている人のみ）</option>
+                <option value="PRIVATE">非公開（自分のみ）</option>
+              </select>
+            </label>
+          </div>
+          <div className="space-y-2 text-xs text-text-muted">
+            {!isLoggedIn && <p className="text-rose-500">公開するにはGoogleでログインしてください。</p>}
+            {isLoggedIn && !result && <p className="text-amber-600">公開前にAIスコアリングを実行してください。</p>}
+            <p>公開後は /r/[slug] に閲覧専用ビューが生成され、いいね・ブックマーク・共有リンクが利用できます。</p>
+          </div>
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setPublishOpen(false)}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              キャンセル
+            </button>
+            <button
+              type="submit"
+              disabled={publishStatus === "loading" || !isLoggedIn || !result}
+              className="rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-emerald-600 hover:to-sky-600 disabled:opacity-60"
+            >
+              {publishStatus === "loading" ? "公開中…" : "公開する"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  ) : null;
+
   function handleDragEnd(resultDrag: DropResult) {
     if (!resultDrag.destination) return;
     const { source, destination } = resultDrag;
@@ -699,12 +801,56 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
     }
   }
 
+  if (view === "result") {
+    return (
+      <div className="relative pb-16">
+        <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+          {scoreResponse && result ? (
+            <ResultReport
+              response={scoreResponse}
+              items={items}
+              metrics={metrics}
+              summary={summary}
+              onBack={() => setView("editor")}
+              onOpenPublish={() => {
+                setPublishOpen(true);
+                setPublishError(undefined);
+              }}
+              publishDisabled={publishDisabled}
+              onExportJSON={exportAsJSON}
+              onExportCSV={exportAsCSV}
+              onExportPNG={exportAsPNG}
+              onExportPDF={exportAsPDF}
+              onExportDocx={exportAsDocx}
+              viewRef={viewRef}
+              reportRef={reportRef}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-4 rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+              <p className="text-base text-text-muted">
+                まだ評価結果がありません。入力ビューで候補と指標を設定してAI評価を実行してください。
+              </p>
+              <button
+                type="button"
+                onClick={() => setView("editor")}
+                className="rounded-2xl border border-slate-300 px-5 py-3 text-base font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
+              >
+                入力に戻る
+              </button>
+            </div>
+          )}
+        </div>
+        {publishModal}
+      </div>
+    );
+  }
+
   return (
     <div className="relative pb-32">
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm dark:border-slate-800">
+        <div className="mx-auto w-full max-w-5xl px-4 pb-44 pt-6 sm:px-6 lg:px-8">
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-200 bg-surface p-6 shadow-sm dark:border-slate-800">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold">サンプルプリセット</h2>
@@ -715,19 +861,19 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <button
                     onClick={() => applyPreset("reset")}
-                    className="rounded-lg border border-slate-300 px-3 py-1.5 transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+                    className="rounded-2xl border border-slate-300 px-4 py-2 text-sm transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                   >
                     初期セットに戻す
                   </button>
                   <button
                     onClick={() => applyPreset("naming")}
-                    className="rounded-lg border border-slate-300 px-3 py-1.5 transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+                    className="rounded-2xl border border-slate-300 px-4 py-2 text-sm transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                   >
                     命名案の比較（サンプル）
                   </button>
                   <button
                     onClick={() => applyPreset("company")}
-                    className="rounded-lg border border-slate-300 px-3 py-1.5 transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+                    className="rounded-2xl border border-slate-300 px-4 py-2 text-sm transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
                   >
                     企業比較（サンプル）
                   </button>
@@ -735,7 +881,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-sky-400/50 bg-sky-50/80 p-4 shadow-sm backdrop-blur dark:border-sky-500/40 dark:bg-sky-900/20">
+            <div className="rounded-3xl border border-sky-400/50 bg-sky-50/80 p-6 shadow-sm backdrop-blur dark:border-sky-500/40 dark:bg-sky-900/20">
               <div className="mb-3 space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -746,7 +892,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                     <span className="rounded-md bg-sky-600 px-2 py-0.5 text-xs font-semibold text-white">{items.length} 件</span>
                     <button
                       onClick={addItem}
-                      className="rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-sky-700"
+                      className="w-full rounded-2xl bg-sky-600 px-5 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-sky-700 sm:w-auto"
                     >
                       候補を追加
                     </button>
@@ -764,7 +910,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
 
               <Droppable droppableId="items">
                 {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
+                  <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-4">
                     {items.map((item, idx) => {
                       const collapsed = collapsedItems[idx];
                       const metaNote = (item.meta as { note?: string } | undefined)?.note ?? "";
@@ -775,7 +921,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                               ref={dragProvided.innerRef}
                               {...dragProvided.draggableProps}
                               className={clsx(
-                                "rounded-xl border border-sky-400/50 bg-white/80 p-4 shadow-sm transition dark:bg-slate-950/60",
+                                "rounded-3xl border border-sky-400/50 bg-white/90 p-6 shadow-sm transition dark:bg-slate-950/60",
                                 snapshot.isDragging ? "ring-2 ring-sky-400" : undefined,
                               )}
                             >
@@ -791,7 +937,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => toggleItemCollapse(idx)}
-                                    className="rounded-md border border-sky-200 px-2 py-1 text-xs text-sky-700 transition hover:bg-sky-100 dark:border-sky-700 dark:text-sky-100"
+                                    className="rounded-xl border border-sky-200 px-4 py-2 text-sm text-sky-700 transition hover:bg-sky-100 dark:border-sky-700 dark:text-sky-100"
                                   >
                                     {collapsed ? "＋ 開く" : "－ 閉じる"}
                                   </button>
@@ -805,7 +951,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                                   {items.length > 1 && (
                                     <button
                                       onClick={() => removeItem(idx)}
-                                      className="text-xs text-rose-500 hover:underline"
+                                    className="rounded-xl px-4 py-2 text-sm text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
                                     >
                                       削除
                                     </button>
@@ -814,33 +960,33 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                               </div>
                               {!collapsed && (
                                 <div className="space-y-3 text-sm">
-                                  <div className="grid gap-3 md:grid-cols-2">
-                                  <label className="flex flex-col gap-1">
+                                  <div className="grid gap-4 md:grid-cols-2">
+                                    <label className="flex flex-col gap-2">
                                       <span className="font-medium">候補ID</span>
                                       <span className="text-xs text-sky-800/80 dark:text-sky-100/70">AIが識別する短いID（例：A）</span>
                                       <input
-                                        className="rounded-lg border border-sky-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
+                                        className="rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
                                         value={item.id}
                                         onChange={(event) => updateItems(idx, { id: event.target.value })}
                                         placeholder="例: A"
                                       />
                                     </label>
-                                    <label className="flex flex-col gap-1">
+                                    <label className="flex flex-col gap-2">
                                       <span className="font-medium">表示名</span>
                                       <span className="text-xs text-sky-800/80 dark:text-sky-100/70">一般ユーザー向けの名前（例：プランA）</span>
                                       <input
-                                        className="rounded-lg border border-sky-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
+                                        className="rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
                                         value={item.name ?? ""}
                                         onChange={(event) => updateItems(idx, { name: event.target.value })}
                                         placeholder="例: プランA"
                                       />
                                     </label>
                                   </div>
-                                  <label className="flex flex-col gap-1">
+                                  <label className="flex flex-col gap-2">
                                     <span className="font-medium">補足メモ（任意）</span>
                                     <span className="text-xs text-sky-800/80 dark:text-sky-100/70">比較時の参考情報をメモできます</span>
                                     <textarea
-                                      className="min-h-[60px] rounded-lg border border-sky-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
+                                      className="min-h-[72px] rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
                                       value={metaNote}
                                       onChange={(event) => updateItems(idx, { metaNote: event.target.value })}
                                       placeholder="例: 月額980円の入門プラン"
@@ -859,7 +1005,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
               </Droppable>
             </div>
 
-            <div className="rounded-2xl border border-emerald-400/50 bg-emerald-50/80 p-4 shadow-sm backdrop-blur dark:border-emerald-500/40 dark:bg-emerald-900/20">
+            <div className="rounded-3xl border border-emerald-400/50 bg-emerald-50/80 p-6 shadow-sm backdrop-blur dark:border-emerald-500/40 dark:bg-emerald-900/20">
               <div className="mb-3 space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -870,7 +1016,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                     <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">{metrics.length} 件</span>
                     <button
                       onClick={addMetric}
-                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700"
+                      className="w-full rounded-2xl bg-emerald-600 px-5 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-emerald-700 sm:w-auto"
                     >
                       指標を追加
                     </button>
@@ -879,7 +1025,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                 <p className="text-xs text-emerald-900/80 dark:text-emerald-100/80">
                   比較に使う観点を追加してください。AIはこの情報をもとに総合スコアとティアを提案します。
                 </p>
-                <div className="rounded-xl border border-emerald-200/70 bg-white/80 p-3 text-[11px] leading-5 text-emerald-900/80 shadow-sm dark:border-emerald-700/70 dark:bg-emerald-950/40 dark:text-emerald-100/80">
+                <div className="rounded-2xl border border-emerald-200/70 bg-white/80 p-4 text-[11px] leading-5 text-emerald-900/80 shadow-sm dark:border-emerald-700/70 dark:bg-emerald-950/40 dark:text-emerald-100/80">
                   <div><span className="font-semibold">指標名</span>：例：コスパ / 信頼性 / デザイン。</div>
                   <div><span className="font-semibold">タイプ</span>：数値（1〜10など）/ 選択式 / Yes/No。迷ったら数値を選べばOK。</div>
                   <div><span className="font-semibold">評価方向</span>：高いほど良い or 低いほど良い。</div>
@@ -891,7 +1037,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
 
               <Droppable droppableId="metrics">
                 {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
+                  <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-4">
                     {metrics.map((metric, idx) => {
                       const collapsed = collapsedMetrics[idx];
                       const type = metric.type ?? "numeric";
@@ -922,8 +1068,8 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                             <div
                               ref={dragProvided.innerRef}
                               {...dragProvided.draggableProps}
-                              className={clsx(
-                                "rounded-xl border border-emerald-400/50 bg-white/80 p-4 shadow-sm transition dark:bg-slate-950/60",
+                            className={clsx(
+                              "rounded-3xl border border-emerald-400/50 bg-white/90 p-6 shadow-sm transition dark:bg-slate-950/60",
                                 snapshot.isDragging ? "ring-2 ring-emerald-400" : undefined,
                               )}
                             >
@@ -939,7 +1085,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => toggleMetricCollapse(idx)}
-                                    className="rounded-md border border-emerald-200 px-2 py-1 text-xs text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-100"
+                                    className="rounded-xl border border-emerald-200 px-4 py-2 text-sm text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-100"
                                   >
                                     {collapsed ? "＋ 開く" : "－ 閉じる"}
                                   </button>
@@ -953,7 +1099,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                                   {metrics.length > 1 && (
                                     <button
                                       onClick={() => removeMetric(idx)}
-                                      className="text-xs text-rose-500 hover:underline"
+                                    className="rounded-xl px-4 py-2 text-sm text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
                                     >
                                       削除
                                     </button>
@@ -961,19 +1107,19 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                                 </div>
                               </div>
                               {!collapsed && (
-                                <div className="space-y-3 text-sm">
-                                  <div className="grid gap-3 md:grid-cols-2">
-                                    <label className="flex flex-col gap-1">
+                                <div className="space-y-4 text-sm">
+                                  <div className="grid gap-4 md:grid-cols-2">
+                                    <label className="flex flex-col gap-2">
                                       <span className="font-medium">指標名</span>
                                       <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">例：コスパ / 信頼性 / デザイン</span>
                                       <input
-                                        className="rounded-lg border border-emerald-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                        className="rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                         value={metric.name}
                                         onChange={(event) => updateMetric(idx, { name: event.target.value })}
                                         placeholder="例: コスパ"
                                       />
                                     </label>
-                                    <label className="flex flex-col gap-1">
+                                    <label className="flex flex-col gap-2">
                                       <span className="flex items-center gap-1 font-medium">
                                         タイプ
                                         <span className="rounded-full bg-emerald-100 px-1.5 text-[10px] font-semibold text-emerald-700" title="数式を選ぶと下の式フィールドが表示されます。">
@@ -982,7 +1128,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                                       </span>
                                       <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">数値（1〜10など）/ 選択式 / Yes/No。迷ったら数値でOKです。</span>
                                       <select
-                                        className="rounded-lg border border-emerald-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                        className="rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                         value={type}
                                         onChange={(event) => updateMetric(idx, { type: event.target.value as MetricInput["type"] })}
                                       >
@@ -995,12 +1141,12 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                                   </div>
 
                                   {(type === "numeric" || type === "likert") && (
-                                    <div className="grid gap-3 md:grid-cols-2">
-                                      <label className="flex flex-col gap-1">
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                      <label className="flex flex-col gap-2">
                                         <span className="font-medium">評価方向</span>
                                         <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">高いほうが良いか、低いほうが良いかを選びます</span>
                                         <select
-                                          className="rounded-lg border border-emerald-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                          className="rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                           value={metric.direction ?? "MAX"}
                                           onChange={(event) => updateMetric(idx, { direction: event.target.value as MetricInput["direction"] })}
                                         >
@@ -1008,11 +1154,11 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                                           <option value="MIN">低いほど良い</option>
                                         </select>
                                       </label>
-                                      <label className="flex flex-col gap-1">
+                                      <label className="flex flex-col gap-2">
                                         <span className="font-medium">正規化</span>
                                         <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">分からなければ「なし」のままで大丈夫です</span>
                                         <select
-                                          className="rounded-lg border border-emerald-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                          className="rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                           value={metric.normalize ?? "none"}
                                           onChange={(event) => updateMetric(idx, { normalize: event.target.value as MetricInput["normalize"] })}
                                         >
@@ -1024,24 +1170,24 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                                     </div>
                                   )}
 
-                                  <div className="grid gap-3 md:grid-cols-2">
-                                    <label className="flex flex-col gap-1">
+                                  <div className="grid gap-4 md:grid-cols-2">
+                                    <label className="flex flex-col gap-2">
                                       <span className="font-medium">重み</span>
                                       <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">重要度を数値で入力（例：1〜5）</span>
                                       <input
                                         type="number"
                                         step="0.1"
-                                        className="rounded-lg border border-emerald-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                        className="rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                         value={metric.weight ?? 1}
                                         onChange={(event) => updateMetric(idx, { weight: Number(event.target.value) })}
                                         placeholder="例: 3"
                                       />
                                     </label>
-                                    <label className="flex flex-col gap-1">
+                                    <label className="flex flex-col gap-2">
                                       <span className="font-medium">閾値 / 備考</span>
                                       <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">除外条件や注記（例：信頼性は3未満なら除外）</span>
                                       <input
-                                        className="rounded-lg border border-emerald-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                        className="rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                         value={metric.target ?? ""}
                                         onChange={(event) =>
                                           updateMetric(idx, {
@@ -1054,8 +1200,8 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                                   </div>
 
                                   {hasFormula && (
-                                    <div className="space-y-2 rounded-lg border border-emerald-200/70 bg-emerald-50/60 p-3 dark:border-emerald-700/70 dark:bg-emerald-900/30">
-                                      <label className="flex flex-col gap-1">
+                                    <div className="space-y-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/60 p-4 dark:border-emerald-700/70 dark:bg-emerald-900/30">
+                                      <label className="flex flex-col gap-2">
                                         <span className="flex items-center gap-2 text-sm font-semibold text-emerald-900 dark:text-emerald-100">
                                           計算式
                                           <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white" title="既存の指標名を変数として使用できます。例: 0.6*総合 + 0.4*評判">
@@ -1063,7 +1209,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                                           </span>
                                         </span>
                                         <input
-                                          className="rounded-lg border border-emerald-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-emerald-700 dark:bg-emerald-950"
+                                      className="rounded-2xl border border-emerald-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-emerald-700 dark:bg-emerald-950"
                                           value={metric.formula ?? ""}
                                           onChange={(event) => updateMetric(idx, { formula: event.target.value })}
                                           placeholder="0.6*総合 + 0.4*評判"
@@ -1119,7 +1265,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
               </Droppable>
             </div>
 
-            <div className="space-y-4 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm dark:border-slate-800">
+            <div className="space-y-6 rounded-3xl border border-slate-200 bg-surface p-6 shadow-sm dark:border-slate-800">
               <div className="space-y-1">
                 <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">AI設定</div>
                 <p className="text-sm text-text-muted">評価の厳しさとWeb検索のスタイルをまとめて調整できます。</p>
@@ -1155,7 +1301,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                   </label>
                   <p className="text-xs text-text-muted">最新の公開情報から根拠URLとリスクメモを収集します。</p>
                   {useWeb && (
-                    <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-sm shadow-sm dark:border-emerald-800 dark:bg-emerald-950/40">
+                    <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm shadow-sm dark:border-emerald-800 dark:bg-emerald-950/40">
                       <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">検索の深さ</div>
                       <Segmented<SearchDepth>
                         value={searchDepth}
@@ -1174,7 +1320,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
               </div>
             </div>
 
-            <div className="space-y-3 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm dark:border-slate-800">
+            <div className="space-y-5 rounded-3xl border border-slate-200 bg-surface p-6 shadow-sm dark:border-slate-800">
               <div className="space-y-1">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-300">履歴</div>
                 <p className="text-sm text-text-muted">評価を実行すると条件と結果を自動保存できます。</p>
@@ -1189,10 +1335,10 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
               </label>
               <p className="text-xs text-text-muted">保存するとレポートの要約や指標設定も一緒に残ります。</p>
               {historyEnabled && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/50">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/50">
                   <div className="mb-2 font-medium">履歴用タイトル（任意）</div>
                   <input
-                    className="mb-3 w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-slate-700 dark:bg-slate-900"
+                    className="mb-3 w-full rounded-2xl border border-slate-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-slate-700 dark:bg-slate-900"
                     value={historyTitle}
                     onChange={(event) => setHistoryTitle(event.target.value)}
                     placeholder="例：2024年7月 評価版"
@@ -1205,7 +1351,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
               )}
 
               {history.length > 0 && (
-                <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="font-medium">保存済みの履歴</div>
                     <span className="rounded bg-slate-200 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-200">
@@ -1214,7 +1360,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                   </div>
                   <ul className="space-y-3">
                     {history.map((entry) => (
-                      <li key={entry.id} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                      <li key={entry.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="text-sm font-semibold">{entry.title}</div>
@@ -1223,13 +1369,13 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleLoadHistory(entry)}
-                              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs transition hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
+                              className="rounded-xl border border-slate-300 px-4 py-2 text-sm transition hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
                             >
                               反映
                             </button>
                             <button
                               onClick={() => handleDeleteHistory(entry.id)}
-                              className="rounded-lg px-3 py-1.5 text-xs text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                              className="rounded-xl px-4 py-2 text-sm text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
                             >
                               削除
                             </button>
@@ -1248,105 +1394,22 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
             </div>
           </div>
 
-          <div className="space-y-4 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm dark:border-slate-800">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">評価レポート</h2>
-              <Segmented<ViewTab>
-                value={tab}
-                onChange={setTab}
-                options={[
-                  { label: "Tier表", value: "tier" },
-                  { label: "ランキング", value: "rank" },
-                  { label: "カード", value: "cards" },
-                  { label: "レーダー", value: "radar" },
-                  { label: "要約", value: "report" },
-                  { label: "JSON", value: "json" },
-                ]}
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => exportJSON(result ?? {}, "tier-rank.json")}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
-              >
-                JSON保存
-              </button>
-              <button
-                onClick={exportAsCSV}
-                disabled={!result?.items?.length}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:hover:bg-slate-800"
-              >
-                CSV保存
-              </button>
-              <button
-                onClick={exportAsPNG}
-                disabled={!result}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:hover:bg-slate-800"
-              >
-                PNG保存（表示中）
-              </button>
-              <button
-                onClick={exportAsPDF}
-                disabled={!summary}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:hover:bg-slate-800"
-              >
-                PDF出力（要約）
-              </button>
-              <button
-                onClick={exportAsDocx}
-                disabled={!summary}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm transition hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:hover:bg-slate-800"
-              >
-                Word出力（要約）
-              </button>
-            </div>
-
-            <div ref={viewRef} className="min-h-[540px]">
-              {result ? (
-                <ResultTabs
-                  data={result}
-                  tab={tab}
-                  items={items}
-                  reportRef={reportRef}
-                  summary={summary}
-                  metrics={metrics}
-                  scoreResponse={scoreResponse}
-                />
-              ) : (
-                <div className="flex h-full flex-col justify-center gap-4 rounded-xl border border-dashed border-slate-300 p-6 text-sm text-text-muted dark:border-slate-700">
-                  <div>
-                    <div className="text-base font-semibold text-slate-700 dark:text-slate-200">まだ評価は実行されていません。</div>
-                    <p className="mt-1">以下のステップに沿って候補と評価軸を準備してください。</p>
-                  </div>
-                  <ol className="list-decimal space-y-1 pl-5 text-left">
-                    <li>左側で候補（案A、案B など）を登録する</li>
-                    <li>評価軸（例：コスパ、信頼性）を追加する</li>
-                    <li>画面下部の「AIに評価を依頼する」を押す</li>
-                  </ol>
-                  <p className="text-xs text-text-muted">
-                    実行するとティア表・ランキング・要約レポート・JSONをここに表示します。
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </DragDropContext>
 
-      <div className="pointer-events-none fixed bottom-4 left-1/2 z-40 w-[min(960px,90vw)] -translate-x-1/2">
-        <div className="pointer-events-auto flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="pointer-events-none fixed bottom-6 left-1/2 z-40 w-[min(960px,92vw)] -translate-x-1/2">
+        <div className="pointer-events-auto flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="text-sm font-semibold">🚀 AI評価を実行</div>
-              <div className="text-xs text-text-muted">候補 {items.length} 件 / 指標 {metrics.length} 件</div>
+              <div className="text-base font-semibold">🚀 AI評価を実行</div>
+              <div className="text-sm text-text-muted">候補 {items.length} 件 / 指標 {metrics.length} 件</div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                <span className="rounded-full bg-slate-200 px-3 py-1 text-xs text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">
                   AI {Math.max(0, effectiveScoreRemaining)} / {maxScorePerDay}
                 </span>
-                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">
+                <span className="rounded-full bg-slate-200 px-3 py-1 text-xs text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">
                   Web {Math.max(0, effectiveWebRemaining)} / {maxWebPerDay}
                 </span>
               </div>
@@ -1357,20 +1420,20 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                   setPublishError(undefined);
                 }}
                 disabled={publishDisabled}
-                className="rounded-xl border border-emerald-300 bg-white/80 px-4 py-2 text-sm font-semibold text-emerald-600 shadow-sm transition hover:bg-emerald-50 disabled:opacity-60 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200 dark:hover:bg-emerald-900/60"
+                className="w-full rounded-2xl border border-emerald-300 bg-white/80 px-5 py-3 text-base font-semibold text-emerald-600 shadow-sm transition hover:bg-emerald-50 disabled:opacity-60 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200 dark:hover:bg-emerald-900/60 sm:w-auto"
               >
                 公開設定
               </button>
               <button
                 onClick={run}
                 disabled={disableRun}
-                className="rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-sky-600 hover:to-emerald-600 disabled:opacity-60"
+                className="w-full rounded-2xl bg-gradient-to-r from-sky-500 to-emerald-500 px-6 py-3 text-base font-semibold text-white shadow-lg transition hover:from-sky-600 hover:to-emerald-600 disabled:opacity-60 sm:w-auto"
               >
                 {loading ? "AIが評価しています…" : "AIに評価を依頼する"}
               </button>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
             {projectSlugMissing && !loading && !error ? (
               <span className="text-rose-500">AIプロジェクトが設定されていません。管理者にお問い合わせください。</span>
             ) : loading ? (
@@ -1385,7 +1448,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
             )}
           </div>
           {(publishStatus === "success" && publishedUrl) || publishError ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-100">
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-100">
               {publishStatus === "success" && publishedUrl ? (
                 <span>
                   公開が完了しました。<a className="underline" href={publishedUrl} target="_blank" rel="noreferrer">公開ページを開く</a>
@@ -1397,100 +1460,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
           ) : null}
         </div>
       </div>
-      {publishOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur">
-          <div className="w-[min(520px,92vw)] rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">ランキングを公開</h3>
-                <p className="text-sm text-text-muted">タイトルやタグを設定して公開ビューを作成します。</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPublishOpen(false)}
-                className="rounded-full border border-slate-200 px-2 py-1 text-sm text-slate-500 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-              >
-                ✕
-              </button>
-            </div>
-            <form className="space-y-4" onSubmit={handlePublishSubmit}>
-              <div className="grid gap-4">
-                <label className="flex flex-col gap-2 text-sm">
-                  <span className="font-semibold">タイトル</span>
-                  <input
-                    value={publishTitle}
-                    onChange={(event) => setPublishTitle(event.target.value)}
-                    placeholder="例：2024年 上半期ノートPCランキング"
-                    className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
-                  />
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  <span className="font-semibold">カテゴリ</span>
-                  <input
-                    value={publishCategory}
-                    onChange={(event) => setPublishCategory(event.target.value)}
-                    placeholder="例：ガジェット"
-                    className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
-                  />
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  <span className="font-semibold">タグ</span>
-                  <input
-                    value={publishTags}
-                    onChange={(event) => setPublishTags(event.target.value)}
-                    placeholder="カンマ区切りで入力 (例：ノートPC, 2024)"
-                    className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
-                  />
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  <span className="font-semibold">紹介文</span>
-                  <textarea
-                    value={publishSummary}
-                    onChange={(event) => setPublishSummary(event.target.value)}
-                    rows={4}
-                    placeholder="ランキングの背景やポイントを短く紹介しましょう。"
-                    className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
-                  />
-                  <span className="text-xs text-text-muted">Markdown記法に対応し、安全なHTMLに自動変換されます。</span>
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  <span className="font-semibold">公開範囲</span>
-                  <select
-                    value={publishVisibility}
-                    onChange={(event) => setPublishVisibility(event.target.value as PublishVisibility)}
-                    className="rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
-                  >
-                    <option value="PUBLIC">公開（誰でも閲覧可能）</option>
-                    <option value="UNLISTED">限定公開（リンクを知っている人のみ）</option>
-                    <option value="PRIVATE">非公開（自分のみ）</option>
-                  </select>
-                </label>
-              </div>
-              <div className="space-y-2 text-xs text-text-muted">
-                {!isLoggedIn && <p className="text-rose-500">公開するにはGoogleでログインしてください。</p>}
-                {isLoggedIn && !result && <p className="text-amber-600">公開前にAIスコアリングを実行してください。</p>}
-                <p>公開後は /r/[slug] に閲覧専用ビューが生成され、いいね・ブックマーク・共有リンクが利用できます。</p>
-              </div>
-              <div className="flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPublishOpen(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-                >
-                  キャンセル
-                </button>
-                <button
-                  type="submit"
-                  disabled={publishStatus === "loading" || !isLoggedIn || !result}
-                  className="rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-emerald-600 hover:to-sky-600 disabled:opacity-60"
-                >
-                  {publishStatus === "loading" ? "公開中…" : "公開する"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {publishModal}
     </div>
   );
 }
