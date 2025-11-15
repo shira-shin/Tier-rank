@@ -5,9 +5,17 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import type { ScoreRequest as ScoreRequestPayload, ScoreResponse as ScoreResponsePayload, MetricType } from "@/lib/types";
+import type {
+  ScoreRequest as ScoreRequestPayload,
+  ScoreResponse as ScoreResponsePayload,
+  MetricType,
+  EvaluationStrictness,
+  SearchDepth,
+} from "@/lib/types";
 
 const metricTypeValues = ["numeric", "likert", "boolean", "formula"] as const satisfies readonly MetricType[];
+const evaluationStrictnessValues = ["lenient", "balanced", "strict"] as const satisfies readonly EvaluationStrictness[];
+const searchDepthValues = ["shallow", "normal", "deep"] as const satisfies readonly SearchDepth[];
 
 const candidateSchema = z.object({
   id: z.string().min(1),
@@ -31,6 +39,8 @@ const scoreRequestSchema = z.object({
     .object({
       tiers: z.array(z.string().min(1)).min(1).max(10).optional(),
       useWebSearch: z.boolean().optional(),
+      strictness: z.enum(evaluationStrictnessValues).optional(),
+      searchDepth: z.enum(searchDepthValues).optional(),
     })
     .optional(),
 });
@@ -70,6 +80,7 @@ const scoreEntrySchema = z.object({
   top_criteria: z.array(z.string().min(1)).min(1).max(5).optional(),
   criteria_breakdown: z.array(criteriaBreakdownSchema).min(1).max(20),
   sources: z.array(sourceEntrySchema).optional(),
+  risk_notes: z.array(z.string().min(1)).max(10).optional(),
 });
 
 const scoreResponseSchema = z.object({
@@ -100,22 +111,37 @@ function clampScore(value?: number): number {
   return value;
 }
 
-function buildPrompt(projectName: string, projectDescription: string | null, body: ScoreRequest, useWebSearch: boolean) {
+function buildPrompt(projectName: string, projectDescription: string | null, body: ScoreRequest) {
   const tierList = body.options?.tiers?.length ? body.options.tiers : ["S", "A", "B", "C"];
+  const useWebSearch = body.options?.useWebSearch === true;
+  const strictness = body.options?.strictness ?? "balanced";
+  const searchDepth = body.options?.searchDepth ?? "normal";
+
+  const strictnessText =
+    strictness === "lenient"
+      ? "評価はやや甘めにし、平均的な候補でも B〜A 評価が付きやすいように配慮してください。"
+      : strictness === "strict"
+      ? "評価はかなり厳しめにし、S ランクはごく少数の明確に優れた候補にのみ与えてください。情報不足や不透明な点は減点要素として扱います。"
+      : "評価は標準的な厳しさで行ってください。";
+
+  const depthDescription: Record<SearchDepth, string> = {
+    shallow: "簡易検索: 主要な情報源を素早く確認し、要点のみを整理してください。",
+    normal: "標準検索: 代表的な情報源を複数確認し、強みと懸念点をバランスよくまとめてください。",
+    deep: "詳細検索: 候補ごとに複数の信頼できる情報源を深掘りし、肯定的な情報と否定的な情報の双方を詳しく整理してください。",
+  };
+
+  const searchText = useWebSearch
+    ? `必要に応じて web_search ツールを使用し、公式サイト・ニュース・調査レポートなど複数の情報源を確認してください。好意的な情報だけでなく、批判的な論点・リスク・否定的な評価も必ず調べ、情報源同士に矛盾がある場合はその旨を理由に含めてください。検索の深さは「${searchDepth}」です。${depthDescription[searchDepth]} 情報が古い・不足している場合はデータ不足としてスコアやTierに反映し、risk_notes に注意書きを追加してください。`
+    : "外部のWeb検索は利用せず、一般的に知られている情報や提供データから最良の推定を行ってください。不確実な点は risk_notes に記載し、スコアに慎重さを反映してください。";
+
   const headerParts = [
-    "あなたは評価エージェントです。候補と評価指標をもとに最新の情報を調べ、ティア表と詳細スコアを作成します。",
-    "指定されたJSON構造のみを返し、前後に説明文やコードブロック（```json など）を付けてはいけません。",
+    "あなたは企業の労働環境・給与水準・将来性などを評価する専門アナリストです。",
+    strictnessText,
+    searchText,
     `ティアは ${tierList.join(" > ")} の順序で使用し、各候補に0〜1（小数第3位まで）の総合スコアと主要理由を付けてください。`,
-    "top_criteria には特に重要だった指標名を2〜3件挙げてください。",
+    "結果は指定されたJSON構造のみを返し、前後に説明文やコードブロック（```json など）を付けてはいけません。",
+    "top_criteria には特に重要だった指標名を2〜3件挙げ、sources と risk_notes で根拠と懸念点を整理してください。",
   ];
-  if (useWebSearch) {
-    headerParts.push(
-      "必要に応じて web_search ツールを呼び出し、最新の公開情報から労働環境・給与水準・将来性などを確認してください。",
-    );
-    headerParts.push("検索で得た情報のURLを候補ごとに1〜3件、sources 配列に必ず記録してください。");
-  } else {
-    headerParts.push("外部検索が使えない場合は、提供された情報を基に最良の推定を行ってください。");
-  }
   const header = headerParts.join(" ");
 
   const schemaInstructionLines = [
@@ -150,6 +176,10 @@ function buildPrompt(projectName: string, projectDescription: string | null, bod
     '      ],',
     '      "sources": [',
     '        { "url": "https://example.com/...", "title": "企業Aの働き方改革に関する記事", "note": "労働環境の改善事例" }',
+    '      ],',
+    '      "risk_notes": [',
+    '        "長時間労働に関する訴訟が進行中。",',
+    '        "直近決算の公開が遅れており最新情報が不足している。"',
     '      ]',
     '    }',
     '  ]',
@@ -162,6 +192,7 @@ function buildPrompt(projectName: string, projectDescription: string | null, bod
     "- criteria_breakdown は入力された評価指標ごとに日本語で理由をまとめる",
     "- tier は指定された順序を尊重し、候補ごとに1つだけ設定する",
     "- sources には候補ごとに1〜3件のURLのみを含め、title と note は必要に応じて簡潔に記載する",
+    "- risk_notes には候補のリスク・懸念点・情報不足を箇条書きでまとめる（該当がなければ空配列）",
     "- ここに記載されていないキーを追加しない",
   ];
   if (useWebSearch) {
@@ -179,12 +210,14 @@ function buildPrompt(projectName: string, projectDescription: string | null, bod
     criteria: body.criteria,
     settings: {
       useWebSearch,
+      strictness,
+      searchDepth,
     },
   };
 
   const evaluationInstruction = useWebSearch
-    ? "各候補を評価指標に基づいて比較し、外部情報が必要な場合は web_search ツールを呼び出して最新の公開情報を確認してください。検索で得た内容を根拠にスコアと理由をまとめ、参照したURLを必ず sources に含めてください。"
-    : "各候補を評価指標に基づいて比較し、提供された情報のみから最良の推定を行ってください。理由は簡潔な日本語でまとめてください。";
+    ? "各候補を評価指標に基づいて比較し、web_search ツールで得た情報を根拠にスコアと理由を整理してください。肯定的な情報と否定的な情報の両方を検討し、信頼性が低い・情報が不足している場合は risk_notes に記録し、必要ならスコアやTierを調整してください。参照したURLは必ず sources に含めてください。"
+    : "各候補を評価指標に基づいて比較し、提供された情報のみから最良の推定を行ってください。不確実な点は risk_notes に記録し、理由は簡潔な日本語でまとめてください。";
 
   return [
     { role: "system" as const, content: header },
@@ -193,9 +226,6 @@ function buildPrompt(projectName: string, projectDescription: string | null, bod
     { role: "user" as const, content: JSON.stringify(projectContext) },
   ];
 }
-
-type PromptMessages = ReturnType<typeof buildPrompt>;
-
 function formatMessagesForResponses(messages: PromptMessages) {
   return messages.map((message) => ({
     role: message.role,
@@ -463,6 +493,11 @@ function normaliseResponse(body: ScoreRequest, payload: ScoreResponse): ScoreRes
       .slice(0, 3);
 
     const sources = normaliseSources(entry.sources);
+    const riskNotes = Array.isArray(entry.risk_notes)
+      ? entry.risk_notes
+          .map((note) => (typeof note === "string" ? note.trim() : ""))
+          .filter((note) => note.length > 0)
+      : [];
 
     const mainReason = entry.main_reason?.trim() || normalisedBreakdown[0]?.reason || undefined;
 
@@ -478,6 +513,7 @@ function normaliseResponse(body: ScoreRequest, payload: ScoreResponse): ScoreRes
       top_criteria: topCriteria.length ? topCriteria : undefined,
       criteria_breakdown: normalisedBreakdown,
       ...(sources.length ? { sources } : {}),
+      ...(riskNotes.length ? { risk_notes: riskNotes } : {}),
     });
   }
 
@@ -496,6 +532,7 @@ function normaliseResponse(body: ScoreRequest, payload: ScoreResponse): ScoreRes
         main_reason: "十分な情報が不足しているため推定した結果です。",
         top_criteria: fallbackTopCriteria.length ? fallbackTopCriteria : undefined,
         criteria_breakdown: fallbackBreakdown,
+        risk_notes: ["十分な情報が不足しているため追加調査が必要です。"],
       });
     }
   }
@@ -577,25 +614,30 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     const body = parsedBody.data;
     const useWebSearch = body.options?.useWebSearch === true;
+    const strictness = body.options?.strictness ?? "balanced";
+    const searchDepth = body.options?.searchDepth ?? "normal";
 
     if (!body.candidates?.length || !body.criteria?.length) {
       return NextResponse.json({ error: "Candidates and criteria are required" }, { status: 400 });
     }
 
     console.log("agent/score: request body", body);
-    console.info("agent/score: useWebSearch", useWebSearch);
+    console.info("agent/score: settings", { useWebSearch, strictness, searchDepth });
 
-    const messages = buildPrompt(project.name, project.description, body, useWebSearch);
+    const messages = buildPrompt(project.name, project.description, body);
     const formattedInput = formatMessagesForResponses(messages);
     const client = new OpenAI({ apiKey });
     const tools = useWebSearch ? [{ type: "web_search" as const }] : [];
     console.info("agent/score: tools", tools);
 
+    const maxOutputTokens =
+      searchDepth === "deep" ? 2500 : searchDepth === "shallow" ? 1400 : 1900;
+
     try {
       const requestPayload: ResponsesPayload = {
         model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
         input: formattedInput,
-        max_output_tokens: 2048,
+        max_output_tokens: maxOutputTokens,
         tool_choice: tools.length ? "auto" : "none",
         ...(tools.length ? { tools } : {}),
       };
@@ -604,6 +646,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         model: requestPayload.model,
         tool_choice: requestPayload.tool_choice,
         tools: tools.map((tool) => tool.type),
+        max_output_tokens: requestPayload.max_output_tokens,
       });
 
       const response = await client.responses.create(requestPayload);

@@ -14,6 +14,8 @@ import type {
   MetricType,
   ScoreRequest,
   ScoreResponse,
+  EvaluationStrictness,
+  SearchDepth,
 } from "@/lib/types";
 import {
   exportCSV,
@@ -65,6 +67,24 @@ const COMPANY_PRESET: { items: ItemInput[]; metrics: MetricInput[] } = {
     { name: "給与水準", type: "numeric", direction: "MAX", weight: 3, normalize: "none" },
     { name: "将来性", type: "numeric", direction: "MAX", weight: 5, normalize: "none" },
   ],
+};
+
+const STRICTNESS_SUMMARY: Record<EvaluationStrictness, string> = {
+  lenient: "平均的な候補にも好意的な評価を付けやすくします。",
+  balanced: "長所と短所をバランス良く判断します。",
+  strict: "Sランクはごく少数。情報不足は減点対象です。",
+};
+
+const STRICTNESS_DETAIL: Record<EvaluationStrictness, string> = {
+  lenient: "プラス要素を重視し、B〜Aランクが出やすいモードです。",
+  balanced: "従来どおりの厳しさで、迷った場合はこの設定がおすすめです。",
+  strict: "根拠が弱い場合はスコアを抑え、リスクや不確実性を積極的に指摘します。",
+};
+
+const SEARCH_DEPTH_SUMMARY: Record<SearchDepth, string> = {
+  shallow: "主要な情報源だけを素早く確認します。",
+  normal: "代表的な情報源を複数調査します。",
+  deep: "肯定・否定の両面を深掘りし、複数の根拠を集めます。",
 };
 
 type HistoryEntry = {
@@ -130,6 +150,9 @@ function convertScoreResponseToAgentResult(response: ScoreResponse | undefined):
           url: source.url,
           title: source.title?.trim() || source.url,
         })),
+        risk_notes: (entry.risk_notes ?? [])
+          .map((note) => note?.trim())
+          .filter((note): note is string => Boolean(note)),
       };
     }),
   };
@@ -155,6 +178,8 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
   const [items, setItems] = useState<ItemInput[]>(() => DEFAULT_ITEMS.map((item) => ({ ...item })));
   const [metrics, setMetrics] = useState<MetricInput[]>(() => SIMPLE_METRICS.map((metric) => ({ ...metric })));
   const [useWeb, setUseWeb] = useState(false);
+  const [strictness, setStrictness] = useState<EvaluationStrictness>("balanced");
+  const [searchDepth, setSearchDepth] = useState<SearchDepth>("normal");
   const [historyEnabled, setHistoryEnabled] = useState(false);
   const [historyTitle, setHistoryTitle] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -383,7 +408,9 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
       criteria: normalizedCriteria,
       options: {
         tiers: DEFAULT_TIER_LABELS,
-        ...(useWeb ? { useWebSearch: true } : {}),
+        useWebSearch: useWeb,
+        strictness,
+        searchDepth,
       },
     };
 
@@ -586,12 +613,16 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
   function handleLoadHistory(entry: HistoryEntry) {
     const fallbackItems = (entry as any).payload?.items ?? [];
     const fallbackMetrics = (entry as any).payload?.metrics ?? [];
+    const options = entry.payload?.options ?? {};
     const nextItems: ItemInput[] = (entry.itemsSnapshot?.length ? entry.itemsSnapshot : fallbackItems).map((item: ItemInput) => ({
       ...item,
     }));
     const nextMetrics: MetricInput[] = (entry.metricsSnapshot?.length ? entry.metricsSnapshot : fallbackMetrics).map(
       (metric: MetricInput) => ({ ...metric }),
     );
+    setUseWeb(options.useWebSearch === true);
+    setStrictness(options.strictness ?? "balanced");
+    setSearchDepth(options.searchDepth ?? "normal");
     setItems(nextItems);
     setMetrics(nextMetrics);
     setScoreResponse(entry.scoreResponse);
@@ -1088,12 +1119,67 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
               </Droppable>
             </div>
 
+            <div className="space-y-4 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm dark:border-slate-800">
+              <div className="space-y-1">
+                <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">AI設定</div>
+                <p className="text-sm text-text-muted">評価の厳しさとWeb検索のスタイルをまとめて調整できます。</p>
+              </div>
+              <div className="space-y-5">
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">評価スタイル</h3>
+                    <span className="text-xs text-text-muted">{STRICTNESS_SUMMARY[strictness]}</span>
+                  </div>
+                  <Segmented<EvaluationStrictness>
+                    value={strictness}
+                    onChange={setStrictness}
+                    options={[
+                      { value: "lenient", label: "😇 甘め" },
+                      { value: "balanced", label: "⚖ 標準" },
+                      { value: "strict", label: "🧊 厳しめ" },
+                    ]}
+                  />
+                  <p className="text-xs text-text-muted">{STRICTNESS_DETAIL[strictness]}</p>
+                </section>
+
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Web検索</h3>
+                    <span className="text-xs text-text-muted">
+                      {useWeb ? `残り ${Math.max(0, effectiveWebRemaining)}/${maxWebPerDay} 回` : `1日あたり最大 ${maxWebPerDay} 回`}
+                    </span>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" checked={useWeb} onChange={(event) => setUseWeb(event.target.checked)} />
+                    Web検索を使用して根拠URLを取得
+                  </label>
+                  <p className="text-xs text-text-muted">最新の公開情報から根拠URLとリスクメモを収集します。</p>
+                  {useWeb && (
+                    <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-sm shadow-sm dark:border-emerald-800 dark:bg-emerald-950/40">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">検索の深さ</div>
+                      <Segmented<SearchDepth>
+                        value={searchDepth}
+                        onChange={setSearchDepth}
+                        options={[
+                          { value: "shallow", label: "🔍 簡易" },
+                          { value: "normal", label: "📚 標準" },
+                          { value: "deep", label: "🧠 詳細" },
+                        ]}
+                      />
+                      <p className="text-xs text-text-muted">{SEARCH_DEPTH_SUMMARY[searchDepth]}</p>
+                      <p className="text-xs text-text-muted">候補ごとに最大3件の参考URLとリスクを表示します。</p>
+                    </div>
+                  )}
+                </section>
+              </div>
+            </div>
+
             <div className="space-y-3 rounded-2xl border border-slate-200 bg-surface p-5 shadow-sm dark:border-slate-800">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={useWeb} onChange={(event) => setUseWeb(event.target.checked)} />
-                Web検索を使用して根拠URLを取得
-              </label>
-              <label className="flex items-center gap-2 text-sm">
+              <div className="space-y-1">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-300">履歴</div>
+                <p className="text-sm text-text-muted">評価を実行すると条件と結果を自動保存できます。</p>
+              </div>
+              <label className="flex items-center gap-2 text-sm font-medium">
                 <input
                   type="checkbox"
                   checked={historyEnabled}
@@ -1101,6 +1187,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                 />
                 履歴を保存
               </label>
+              <p className="text-xs text-text-muted">保存するとレポートの要約や指標設定も一緒に残ります。</p>
               {historyEnabled && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/50">
                   <div className="mb-2 font-medium">履歴用タイトル（任意）</div>
