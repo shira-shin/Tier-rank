@@ -92,6 +92,13 @@ type ScoreRequest = z.infer<typeof scoreRequestSchema>;
 type ScoreResponse = z.infer<typeof scoreResponseSchema>;
 type AgentScoreResponse = ScoreResponsePayload;
 
+type PromptMessage = {
+  role: "system" | "user" | "assistant";
+  content: string | unknown;
+};
+
+type PromptMessages = PromptMessage[];
+
 type EnsureTrue<T extends true> = T;
 type _EnsureRequestCompatible = EnsureTrue<
   ScoreRequest extends ScoreRequestPayload ? (ScoreRequestPayload extends ScoreRequest ? true : false) : false
