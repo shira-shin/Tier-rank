@@ -27,7 +27,7 @@ function getReadableDomain(url?: string | null) {
   }
 }
 
-function TierBadge({ tier }: { tier?: string }) {
+function TierBadge({ tier, className }: { tier?: string; className?: string }) {
   const map: Record<string, string> = {
     S: "from-purple-600 to-purple-500",
     A: "from-emerald-600 to-emerald-500",
@@ -40,6 +40,7 @@ function TierBadge({ tier }: { tier?: string }) {
       className={clsx(
         "inline-flex min-w-[2.5rem] items-center justify-center rounded-full bg-gradient-to-r px-3 py-1 text-sm font-semibold text-white",
         map[tier ?? ""] ?? "from-slate-500 to-slate-400",
+        className,
       )}
     >
       {tier ?? "-"}
@@ -195,110 +196,122 @@ export function ResultReport({
         ref={assignReportRef}
         className="space-y-6 rounded-3xl border border-slate-200 bg-slate-50/70 p-6 dark:border-slate-700 dark:bg-slate-900/60"
       >
-        {summary ? (
-          <section className="space-y-3">
+        <section className="space-y-5">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">{summary.title}</h2>
-              <p className="text-sm text-slate-600 dark:text-slate-300">{summary.subtitle}</p>
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">ランキング / Tier一覧</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-300">{sortedScores.length} 件・{response.tiers.length} ティア</p>
             </div>
-            {summary.sections.map((section) => (
-              <div key={section.title} className="space-y-2 rounded-2xl border border-slate-200 bg-white/70 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{section.title}</h3>
-                <ul className="space-y-1 text-sm text-slate-700 dark:text-slate-200">
-                  {section.paragraphs.map((paragraph, index) => (
-                    <li key={`${section.title}-${index}`} className="flex gap-2">
-                      <span className="text-slate-400">•</span>
-                      <span>{paragraph}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </section>
-        ) : null}
-
-        <section className="space-y-4">
-          <header className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">Tier表</h2>
-            <span className="text-sm text-slate-500 dark:text-slate-300">{response.tiers.length} ティア</span>
-          </header>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {tierOrder.map((tier) => {
-              const tierData = response.tiers.find((entry) => entry.label === tier);
-              return (
-                <div
-                  key={tier}
-                  className="flex h-full flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950/60"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Tier {tier}</div>
-                    <TierBadge tier={tier} />
-                  </div>
-                  <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
-                    {(tierData?.items ?? []).map((item) => (
-                      <li key={item.id} className="flex flex-col rounded-xl bg-slate-100/60 p-3 dark:bg-slate-900/60">
-                        <span className="font-semibold">{item.name}</span>
-                        <span className="text-xs text-slate-500 dark:text-slate-300">{formatPercent(item.score)}</span>
-                      </li>
-                    ))}
-                    {(tierData?.items?.length ?? 0) === 0 && (
-                      <li className="rounded-xl border border-dashed border-slate-300 p-3 text-xs text-slate-400 dark:border-slate-600 dark:text-slate-500">
-                        該当なし
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              );
-            })}
+            <p className="text-sm font-medium text-emerald-600 dark:text-emerald-300">{summaryLine}</p>
           </div>
-        </section>
+          <div className="grid gap-5 md:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-sm dark:border-slate-700 dark:bg-slate-950/40">
+              <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/50">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">ランキング</h3>
+              </div>
+              <div className="max-h-[520px] overflow-auto">
+                <table className="min-w-full divide-y divide-slate-200 text-left text-base dark:divide-slate-800">
+                  <thead className="bg-slate-100/80 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-800/80 dark:text-slate-200">
+                    <tr>
+                      <th className="px-5 py-3">順位</th>
+                      <th className="px-5 py-3">候補</th>
+                      <th className="px-5 py-3">Tier</th>
+                      <th className="px-5 py-3 text-right">スコア</th>
+                      <th className="px-5 py-3">主要指標</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white text-base dark:divide-slate-900/60 dark:bg-slate-950/40">
+                    {sortedScores.map((entry, index) => {
+                      const topCriteria = entry.top_criteria?.length ? entry.top_criteria.join(" / ") : "-";
+                      const isSelected = entry.id === selected?.id;
+                      const isTop = index === 0;
+                      return (
+                        <tr
+                          key={entry.id}
+                          onClick={() => setSelectedId(entry.id)}
+                          className={clsx(
+                            "cursor-pointer transition",
+                            isSelected ? "bg-emerald-50/80 dark:bg-emerald-900/40" : undefined,
+                            !isSelected && isTop ? "bg-emerald-50/60 dark:bg-emerald-900/30" : undefined,
+                            "hover:bg-emerald-50/70 dark:hover:bg-emerald-900/30",
+                          )}
+                        >
+                          <td className="px-5 py-4 text-lg font-semibold">
+                            <span className="inline-flex items-center gap-2">
+                              {index + 1}
+                              {isTop && <span aria-hidden className="text-base">🏆</span>}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-lg font-semibold text-slate-900 dark:text-slate-50">{entry.name}</span>
+                              <span className="text-xs text-slate-400">ID: {entry.id}</span>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <TierBadge tier={entry.tier} className="px-4 py-1.5 text-sm" />
+                          </td>
+                          <td className="px-5 py-4 text-right text-xl font-semibold text-emerald-700 dark:text-emerald-300">
+                            {formatPercent(entry.total_score)}
+                          </td>
+                          <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{topCriteria}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-        <section className="space-y-4">
-          <header className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">ランキング</h2>
-            <span className="text-sm text-slate-500 dark:text-slate-300">{sortedScores.length} 件</span>
-          </header>
-          <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-base dark:divide-slate-700">
-              <thead className="bg-slate-100 dark:bg-slate-800/70">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">順位</th>
-                  <th className="px-4 py-3 font-semibold">候補</th>
-                  <th className="px-4 py-3 font-semibold">Tier</th>
-                  <th className="px-4 py-3 font-semibold">スコア</th>
-                  <th className="px-4 py-3 font-semibold">主要指標</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white text-sm dark:divide-slate-800 dark:bg-slate-900/40">
-                {sortedScores.map((entry, index) => {
-                  const topCriteria = entry.top_criteria?.length ? entry.top_criteria.join(" / ") : "-";
-                  const isSelected = entry.id === selected?.id;
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Tier一覧</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-300">Tierごとの候補をカード形式で確認できます。</p>
+              </div>
+              <div className="space-y-4">
+                {tierOrder.map((tier, index) => {
+                  const tierData = response.tiers.find((entry) => entry.label === tier);
+                  const isTopTier = index === 0;
                   return (
-                    <tr
-                      key={entry.id}
-                      onClick={() => setSelectedId(entry.id)}
+                    <div
+                      key={tier}
                       className={clsx(
-                        "cursor-pointer transition hover:bg-emerald-50/70 dark:hover:bg-emerald-900/30",
-                        isSelected ? "bg-emerald-50/80 dark:bg-emerald-900/40" : undefined,
+                        "flex flex-col gap-4 rounded-3xl border bg-white/95 p-5 shadow-sm transition dark:bg-slate-950/40",
+                        isTopTier
+                          ? "border-l-4 border-emerald-400 bg-emerald-50/80 dark:border-emerald-500 dark:bg-emerald-900/30"
+                          : "border-slate-200 dark:border-slate-700",
                       )}
                     >
-                      <td className="px-4 py-3 font-semibold">{index + 1}</td>
-                      <td className="px-4 py-3 text-base font-medium">
-                        <div className="flex flex-col">
-                          <span>{entry.name}</span>
-                          <span className="text-xs text-slate-400">ID: {entry.id}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <TierBadge tier={entry.tier} />
-                      </td>
-                      <td className="px-4 py-3 font-semibold">{formatPercent(entry.total_score)}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{topCriteria}</td>
-                    </tr>
+                      <div className="flex items-center justify-between">
+                        <div className="text-xl font-bold text-slate-900 dark:text-slate-50">Tier {tier}</div>
+                        <TierBadge
+                          tier={tier}
+                          className="min-w-[3rem] px-5 py-1.5 text-base"
+                        />
+                      </div>
+                      <ul className="space-y-3 text-base text-slate-700 dark:text-slate-200">
+                        {(tierData?.items ?? []).map((item) => (
+                          <li
+                            key={item.id}
+                            className="flex items-center justify-between rounded-2xl bg-slate-100/80 px-4 py-3 text-base font-medium dark:bg-slate-900/50"
+                          >
+                            <span className="text-lg font-semibold text-slate-900 dark:text-slate-50">{item.name}</span>
+                            <span className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
+                              {formatPercent(item.score)}
+                            </span>
+                          </li>
+                        ))}
+                        {(tierData?.items?.length ?? 0) === 0 && (
+                          <li className="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-400 dark:border-slate-600 dark:text-slate-500">
+                            該当なし
+                          </li>
+                        )}
+                      </ul>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -409,6 +422,33 @@ export function ResultReport({
             </div>
           </section>
         )}
+
+        {summary ? (
+          <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">{summary.title}</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-300">{summary.subtitle}</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3 md:gap-4">
+              {summary.sections.map((section) => (
+                <div
+                  key={section.title}
+                  className="space-y-2 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4 text-sm leading-relaxed text-slate-700 dark:border-slate-700/70 dark:bg-slate-900/40 dark:text-slate-200"
+                >
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{section.title}</h3>
+                  <ul className="space-y-2">
+                    {section.paragraphs.map((paragraph, index) => (
+                      <li key={`${section.title}-${index}`} className="flex gap-2">
+                        <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-slate-300 dark:bg-slate-600" />
+                        <span>{paragraph}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="space-y-3">
           <button
