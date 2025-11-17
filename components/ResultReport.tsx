@@ -48,6 +48,9 @@ function TierBadge({ tier, className }: { tier?: string; className?: string }) {
   );
 }
 
+type ScoreEntry = ScoreResponse["scores"][number];
+type TierEntry = ScoreResponse["tiers"][number];
+
 type ResultReportProps = {
   response: ScoreResponse;
   items: ItemInput[];
@@ -81,13 +84,17 @@ export function ResultReport({
   viewRef,
   reportRef,
 }: ResultReportProps) {
-  const sortedScores = useMemo(() => [...response.scores].sort((a, b) => b.total_score - a.total_score), [response.scores]);
-  const [selectedId, setSelectedId] = useState(sortedScores[0]?.id ?? "");
+  const sortedScores = useMemo(
+    () => [...response.scores].sort((a, b) => b.total_score - a.total_score),
+    [response.scores],
+  );
+  const [selectedId, setSelectedId] = useState<string | null>(sortedScores[0]?.id ?? null);
+  const [viewMode, setViewMode] = useState<"ranking" | "tier">("ranking");
 
   useEffect(() => {
     const top = sortedScores[0];
     if (!top) {
-      setSelectedId("");
+      setSelectedId(null);
       return;
     }
     setSelectedId((prev) => (prev && sortedScores.some((entry) => entry.id === prev) ? prev : top.id));
@@ -197,122 +204,60 @@ export function ResultReport({
         className="space-y-6 rounded-3xl border border-slate-200 bg-slate-50/70 p-6 dark:border-slate-700 dark:bg-slate-900/60"
       >
         <section className="space-y-5">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">ランキング / Tier一覧</h2>
               <p className="text-sm text-slate-500 dark:text-slate-300">{sortedScores.length} 件・{response.tiers.length} ティア</p>
             </div>
-            <p className="text-sm font-medium text-emerald-600 dark:text-emerald-300">{summaryLine}</p>
-          </div>
-          <div className="grid gap-5 md:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
-            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-sm dark:border-slate-700 dark:bg-slate-950/40">
-              <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/50">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">ランキング</h3>
-              </div>
-              <div className="max-h-[520px] overflow-auto">
-                <table className="min-w-full divide-y divide-slate-200 text-left text-base dark:divide-slate-800">
-                  <thead className="bg-slate-100/80 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-800/80 dark:text-slate-200">
-                    <tr>
-                      <th className="px-5 py-3">順位</th>
-                      <th className="px-5 py-3">候補</th>
-                      <th className="px-5 py-3">Tier</th>
-                      <th className="px-5 py-3 text-right">スコア</th>
-                      <th className="px-5 py-3">主要指標</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white text-base dark:divide-slate-900/60 dark:bg-slate-950/40">
-                    {sortedScores.map((entry, index) => {
-                      const topCriteria = entry.top_criteria?.length ? entry.top_criteria.join(" / ") : "-";
-                      const isSelected = entry.id === selected?.id;
-                      const isTop = index === 0;
-                      return (
-                        <tr
-                          key={entry.id}
-                          onClick={() => setSelectedId(entry.id)}
-                          className={clsx(
-                            "cursor-pointer transition",
-                            isSelected ? "bg-emerald-50/80 dark:bg-emerald-900/40" : undefined,
-                            !isSelected && isTop ? "bg-emerald-50/60 dark:bg-emerald-900/30" : undefined,
-                            "hover:bg-emerald-50/70 dark:hover:bg-emerald-900/30",
-                          )}
-                        >
-                          <td className="px-5 py-4 text-lg font-semibold">
-                            <span className="inline-flex items-center gap-2">
-                              {index + 1}
-                              {isTop && <span aria-hidden className="text-base">🏆</span>}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex flex-col gap-1">
-                              <span className="text-lg font-semibold text-slate-900 dark:text-slate-50">{entry.name}</span>
-                              <span className="text-xs text-slate-400">ID: {entry.id}</span>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4">
-                            <TierBadge tier={entry.tier} className="px-4 py-1.5 text-sm" />
-                          </td>
-                          <td className="px-5 py-4 text-right text-xl font-semibold text-emerald-700 dark:text-emerald-300">
-                            {formatPercent(entry.total_score)}
-                          </td>
-                          <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{topCriteria}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+            <div className="flex flex-col gap-2 sm:items-end">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-300">{summaryLine}</p>
+                <div className="inline-flex rounded-full bg-slate-100 p-1 text-sm dark:bg-slate-800">
+                  <button
+                    type="button"
+                    className={clsx(
+                      "rounded-full px-3 py-1",
+                      viewMode === "ranking"
+                        ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900/70 dark:text-slate-50"
+                        : "text-slate-500 dark:text-slate-300",
+                    )}
+                    onClick={() => setViewMode("ranking")}
+                  >
+                    ランキング
+                  </button>
+                  <button
+                    type="button"
+                    className={clsx(
+                      "rounded-full px-3 py-1",
+                      viewMode === "tier"
+                        ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900/70 dark:text-slate-50"
+                        : "text-slate-500 dark:text-slate-300",
+                    )}
+                    onClick={() => setViewMode("tier")}
+                  >
+                    Tier表
+                  </button>
+                </div>
               </div>
             </div>
+          </div>
 
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Tier一覧</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-300">Tierごとの候補をカード形式で確認できます。</p>
-              </div>
-              <div className="space-y-4">
-                {tierOrder.map((tier, index) => {
-                  const tierData = response.tiers.find((entry) => entry.label === tier);
-                  const isTopTier = index === 0;
-                  return (
-                    <div
-                      key={tier}
-                      className={clsx(
-                        "flex flex-col gap-4 rounded-3xl border bg-white/95 p-5 shadow-sm transition dark:bg-slate-950/40",
-                        isTopTier
-                          ? "border-l-4 border-emerald-400 bg-emerald-50/80 dark:border-emerald-500 dark:bg-emerald-900/30"
-                          : "border-slate-200 dark:border-slate-700",
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="text-xl font-bold text-slate-900 dark:text-slate-50">Tier {tier}</div>
-                        <TierBadge
-                          tier={tier}
-                          className="min-w-[3rem] px-5 py-1.5 text-base"
-                        />
-                      </div>
-                      <ul className="space-y-3 text-base text-slate-700 dark:text-slate-200">
-                        {(tierData?.items ?? []).map((item) => (
-                          <li
-                            key={item.id}
-                            className="flex items-center justify-between rounded-2xl bg-slate-100/80 px-4 py-3 text-base font-medium dark:bg-slate-900/50"
-                          >
-                            <span className="text-lg font-semibold text-slate-900 dark:text-slate-50">{item.name}</span>
-                            <span className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
-                              {formatPercent(item.score)}
-                            </span>
-                          </li>
-                        ))}
-                        {(tierData?.items?.length ?? 0) === 0 && (
-                          <li className="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-400 dark:border-slate-600 dark:text-slate-500">
-                            該当なし
-                          </li>
-                        )}
-                      </ul>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          {viewMode === "ranking" && (
+            <RankingTable
+              scores={sortedScores}
+              selectedId={selected?.id}
+              onSelect={(id) => setSelectedId(id)}
+            />
+          )}
+
+          {viewMode === "tier" && (
+            <TierList
+              tiers={response.tiers}
+              tierOrder={tierOrder}
+              selectedId={selected?.id}
+              onSelect={(id) => setSelectedId(id)}
+            />
+          )}
         </section>
 
         {selected && (
@@ -466,6 +411,142 @@ export function ResultReport({
           )}
         </section>
       </article>
+    </div>
+  );
+}
+
+type RankingTableProps = {
+  scores: ScoreEntry[];
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
+};
+
+function RankingTable({ scores, selectedId, onSelect }: RankingTableProps) {
+  return (
+    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-sm dark:border-slate-700 dark:bg-slate-950/40">
+      <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700 dark:bg-slate-900/50">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">ランキング</h3>
+      </div>
+      <div className="max-h-[520px] overflow-auto">
+        <table className="min-w-full divide-y divide-slate-200 text-left text-base dark:divide-slate-800">
+          <thead className="bg-slate-100/80 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-800/80 dark:text-slate-200">
+            <tr>
+              <th className="px-5 py-3">順位</th>
+              <th className="px-5 py-3">候補</th>
+              <th className="px-5 py-3">Tier</th>
+              <th className="px-5 py-3 text-right">スコア</th>
+              <th className="px-5 py-3">主要指標</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 bg-white text-base dark:divide-slate-900/60 dark:bg-slate-950/40">
+            {scores.map((entry, index) => {
+              const topCriteria = entry.top_criteria?.length ? entry.top_criteria.join(" / ") : "-";
+              const isSelected = entry.id === selectedId;
+              const isTop = index === 0;
+              return (
+                <tr
+                  key={entry.id}
+                  onClick={() => onSelect?.(entry.id)}
+                  className={clsx(
+                    "cursor-pointer transition",
+                    isSelected ? "bg-emerald-50/80 dark:bg-emerald-900/40" : undefined,
+                    !isSelected && isTop ? "bg-emerald-50/60 dark:bg-emerald-900/30" : undefined,
+                    "hover:bg-emerald-50/70 dark:hover:bg-emerald-900/30",
+                  )}
+                >
+                  <td className="px-5 py-4 text-lg font-semibold">
+                    <span className="inline-flex items-center gap-2">
+                      {index + 1}
+                      {isTop && <span aria-hidden className="text-base">🏆</span>}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-lg font-semibold text-slate-900 dark:text-slate-50">{entry.name}</span>
+                      <span className="text-xs text-slate-400">ID: {entry.id}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <TierBadge tier={entry.tier} className="px-4 py-1.5 text-sm" />
+                  </td>
+                  <td className="px-5 py-4 text-right text-xl font-semibold text-emerald-700 dark:text-emerald-300">
+                    {formatPercent(entry.total_score)}
+                  </td>
+                  <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">{topCriteria}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+type TierListProps = {
+  tiers: TierEntry[];
+  tierOrder: string[];
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
+};
+
+function TierList({ tiers, tierOrder, selectedId, onSelect }: TierListProps) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Tier一覧</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-300">Tierごとの候補をカード形式で確認できます。</p>
+      </div>
+      <div className="space-y-4">
+        {tierOrder.map((tierLabel, index) => {
+          const tierData = tiers.find((entry) => entry.label === tierLabel);
+          const isTopTier = index === 0;
+          return (
+            <div
+              key={tierLabel}
+              className={clsx(
+                "flex flex-col gap-4 rounded-3xl border bg-white/95 p-5 shadow-sm transition dark:bg-slate-950/40",
+                isTopTier
+                  ? "border-l-4 border-emerald-400 bg-emerald-50/80 dark:border-emerald-500 dark:bg-emerald-900/30"
+                  : "border-slate-200 dark:border-slate-700",
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-xl font-bold text-slate-900 dark:text-slate-50">Tier {tierLabel}</div>
+                <TierBadge tier={tierLabel} className="min-w-[3rem] px-5 py-1.5 text-base" />
+              </div>
+              <div className="space-y-3 text-base text-slate-700 dark:text-slate-200">
+                {(tierData?.items ?? []).map((item) => {
+                  const isSelected = item.id === selectedId;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => onSelect?.(item.id)}
+                      className={clsx(
+                        "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-base font-medium transition",
+                        isSelected
+                          ? "border-emerald-400 bg-emerald-50/80 text-emerald-900 shadow-sm dark:border-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-100"
+                          : "border-transparent bg-slate-100/80 text-slate-900 hover:border-slate-200 dark:bg-slate-900/50 dark:text-slate-50",
+                      )}
+                    >
+                      <span className="text-lg font-semibold">{item.name}</span>
+                      <span className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
+                        {formatPercent(item.score)}
+                      </span>
+                    </button>
+                  );
+                })}
+                {(tierData?.items?.length ?? 0) === 0 && (
+                  <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-400 dark:border-slate-600 dark:text-slate-500">
+                    該当なし
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
