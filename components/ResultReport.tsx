@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -99,6 +98,26 @@ function IconLink(props: IconProps) {
       <path d="M10 7H7a4 4 0 0 0 0 8h3" />
       <path d="M14 7h3a4 4 0 0 1 0 8h-3" />
       <path d="M8 12h8" />
+    </svg>
+  );
+}
+
+function IconCrown(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
+      <path d="M3.5 8.5 6.5 19h11L20.5 8.5l-4 3-4.5-6-4.5 6-4-3Z" />
+      <path d="M9 19c0 1.5 1.5 2.5 3 2.5s3-1 3-2.5" />
+    </svg>
+  );
+}
+
+function IconRadar(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
+      <circle cx={12} cy={12} r={9} />
+      <path d="M12 12 19 5" />
+      <circle cx={12} cy={12} r={3} />
+      <circle cx={17} cy={7} r={0.9} fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -210,7 +229,7 @@ export function ResultReport({
         }}
       />
       <div className="relative space-y-8 rounded-[38px] bg-white/95 p-6 text-slate-900 backdrop-blur-xl dark:bg-slate-950/70 dark:text-slate-100">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,2.1fr)_minmax(0,0.9fr)]">
           <section className="relative overflow-hidden rounded-[32px] border border-white/60 bg-gradient-to-r from-[#6228d7] via-[#a855f7] to-[#f97316] p-[1px] shadow-[0_30px_60px_rgba(107,33,168,0.4)]">
             <div className="relative flex flex-col gap-6 rounded-[30px] bg-slate-950/70 p-6 text-white backdrop-blur-xl">
               <div className="flex items-center justify-between gap-4">
@@ -252,35 +271,43 @@ export function ResultReport({
             </div>
           </section>
 
-          <section className="space-y-4 rounded-[32px] border border-slate-200/70 bg-white/85 p-6 shadow-xl dark:border-white/10 dark:bg-slate-900/60">
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-300">アクション</p>
-            <div className="space-y-3">
+          <section className="space-y-5 rounded-[32px] border border-slate-200/70 bg-white/90 p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900/70 lg:sticky lg:top-6">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">アクション</p>
+              <span className="text-xs uppercase tracking-[0.4em] text-slate-400">Quick</span>
+            </div>
+            <div className="grid gap-3">
               <button
                 type="button"
                 onClick={onOpenPublish}
                 disabled={publishDisabled}
-                className="flex w-full items-center justify-between rounded-2xl bg-gradient-to-r from-[#ff5f6d] via-[#ff9966] to-[#fcd34d] px-5 py-3 text-base font-semibold text-white shadow-lg transition-transform duration-200 hover:translate-y-0.5 disabled:opacity-60"
+                className="group relative flex items-center justify-between overflow-hidden rounded-3xl bg-gradient-to-r from-[#ff5f6d] via-[#ff9966] to-[#f6d365] px-5 py-4 text-base font-semibold text-white shadow-[0_25px_45px_rgba(255,95,109,0.35)] transition-transform duration-200 hover:-translate-y-0.5 disabled:opacity-60"
               >
-                公開設定
-                <span aria-hidden>↗</span>
+                <span className="flex items-center gap-2">
+                  <IconCrown className="h-5 w-5 animate-pulse text-white/90" /> 公開設定
+                </span>
+                <span aria-hidden className="text-lg font-bold">
+                  ↗
+                </span>
+                <span className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-30" style={{ background: "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.9), transparent 45%)" }} />
               </button>
               <button
                 type="button"
                 onClick={onBack}
-                className="flex w-full items-center justify-between rounded-2xl border border-slate-200/80 bg-white/70 px-5 py-3 text-base font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 dark:border-slate-700/80 dark:bg-slate-800/60 dark:text-white"
+                className="flex items-center justify-between rounded-3xl border border-slate-200/80 bg-gradient-to-r from-white/90 to-slate-50/80 px-5 py-4 text-base font-semibold text-slate-900 shadow-lg shadow-slate-200/60 transition hover:-translate-y-0.5 dark:border-slate-700/80 dark:from-slate-900/50 dark:to-slate-900/30 dark:text-white"
               >
-                入力に戻る
+                <span className="flex items-center gap-2">入力に戻る</span>
                 <span aria-hidden>⟲</span>
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-200">
-              <div className="rounded-2xl border border-slate-100/80 bg-slate-50/80 px-4 py-3 dark:border-white/10 dark:bg-slate-900/40">
+            <div className="grid grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-200">
+              <div className="rounded-2xl border border-slate-100/80 bg-white/80 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
                 <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">指標</p>
-                <p className="font-display text-2xl font-bold text-slate-900 dark:text-white">{metrics.length}</p>
+                <p className="font-display text-3xl font-bold text-slate-900 dark:text-white">{metrics.length}</p>
               </div>
-              <div className="rounded-2xl border border-slate-100/80 bg-slate-50/80 px-4 py-3 dark:border-white/10 dark:bg-slate-900/40">
+              <div className="rounded-2xl border border-slate-100/80 bg-white/80 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
                 <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">履歴保存</p>
-                <p className="font-display text-2xl font-bold text-emerald-600 dark:text-emerald-300">AI</p>
+                <p className="font-display text-3xl font-bold text-emerald-600 dark:text-emerald-300">AI</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2 text-sm">
@@ -289,7 +316,7 @@ export function ResultReport({
                   key={item.label}
                   type="button"
                   onClick={item.action}
-                  className="rounded-full border border-slate-200/80 bg-white/70 px-4 py-2 font-semibold text-slate-700 shadow-sm transition hover:bg-gradient-to-r hover:from-[#a5f3fc] hover:to-[#fbcfe8] hover:text-slate-900 dark:border-white/10 dark:bg-slate-900/50 dark:text-slate-100"
+                  className="rounded-full border border-slate-200/80 bg-white/80 px-4 py-2 font-semibold text-slate-700 shadow-sm transition hover:bg-gradient-to-r hover:from-[#a5f3fc] hover:to-[#fbcfe8] hover:text-slate-900 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100"
                 >
                   {item.label} 保存
                 </button>
@@ -534,84 +561,172 @@ type RankingTableProps = {
 };
 
 function RankingTable({ scores, selectedId, onSelect }: RankingTableProps) {
+  const topEntry = scores[0];
+  const otherEntries = scores.slice(1);
+  const topProgress = clampProgress(topEntry?.total_score) * 100;
+
   return (
-    <div className="overflow-hidden rounded-[32px] border border-slate-200/80 bg-white/95 shadow-xl dark:border-slate-700/70 dark:bg-slate-950/50">
-      <div className="flex items-center justify-between border-b border-slate-200/70 px-6 py-4 dark:border-slate-800/70">
-        <h3 className="font-display text-xl font-semibold text-slate-900 dark:text-white">ランキングハイライト</h3>
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">タップで詳細</p>
-      </div>
-      <div className="max-h-[520px] overflow-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-left text-base dark:divide-slate-800">
-          <thead className="bg-slate-100/80 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:bg-slate-800/70 dark:text-slate-300">
-            <tr>
-              <th className="px-6 py-3">順位</th>
-              <th className="px-6 py-3">候補</th>
-              <th className="px-6 py-3">Tier</th>
-              <th className="px-6 py-3 text-right">スコア</th>
-              <th className="px-6 py-3">主要指標</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 bg-white text-base dark:divide-slate-900/60 dark:bg-transparent">
-            {scores.map((entry, index) => {
-              const topCriteria = entry.top_criteria?.length ? entry.top_criteria.join(" / ") : "-";
-              const isSelected = entry.id === selectedId;
-              const isTop = index === 0;
-              const scoreWidth = clampProgress(entry.total_score) * 100;
-              return (
-                <Fragment key={entry.id}>
-                  <tr
+    <div className="relative overflow-hidden rounded-[40px] border border-white/40 bg-slate-950/40 shadow-[0_40px_80px_rgba(15,23,42,0.55)]">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-80"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 10% 20%, rgba(59,130,246,0.25), transparent 55%), radial-gradient(circle at 90% 30%, rgba(16,185,129,0.25), transparent 60%), radial-gradient(circle at 70% 80%, rgba(248,113,113,0.2), transparent 60%)",
+        }}
+      />
+      <div className="relative space-y-8 rounded-[38px] bg-gradient-to-b from-white/90 to-white/70 p-6 backdrop-blur-xl dark:from-slate-950/70 dark:to-slate-950/50">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-[0.3em] text-slate-400">Ranking / Tier</p>
+            <h3 className="font-display text-4xl font-semibold text-slate-900 dark:text-white">ランキングハイライト</h3>
+            <p className="text-base text-slate-500 dark:text-slate-300">一位のトヨタを筆頭に、カードをタップして煌びやかな詳細を開きましょう。</p>
+          </div>
+          <div className="rounded-full bg-slate-100/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.4em] text-slate-500 dark:bg-slate-900/50 dark:text-slate-300">Tap for more</div>
+        </div>
+
+        {topEntry ? (
+          <button
+            type="button"
+            onClick={() => onSelect?.(topEntry.id)}
+            className={clsx(
+              "group relative w-full overflow-hidden rounded-[36px] border border-white/30 bg-gradient-to-r from-[#0f172a] via-[#1e1b4b] to-[#4c1d95] p-1 text-left shadow-[0_30px_60px_rgba(79,70,229,0.35)] transition",
+              selectedId === topEntry.id ? "ring-2 ring-[#fcd34d]/70" : "hover:translate-y-[-2px]",
+            )}
+          >
+            <div className="absolute inset-0 opacity-80" style={{ background: "radial-gradient(circle at 15% 20%, rgba(252,211,77,0.35), transparent 55%)" }} />
+            <div className="relative rounded-[34px] bg-gradient-to-r from-[#1e1b4b]/95 via-[#312e81]/90 to-[#0f172a]/90 p-6 text-white">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.5em] text-amber-200">
+                    Rank 01
+                    <IconCrown className="h-4 w-4 animate-pulse text-amber-200" />
+                  </div>
+                  <p className="font-display text-4xl font-bold">{topEntry.name}</p>
+                  <p className="text-base text-white/80">{topEntry.main_reason ?? "AIが選んだトップ企業のサマリーをチェック"}</p>
+                  <div className="flex flex-wrap gap-3 text-sm">
+                    {(topEntry.top_criteria ?? []).slice(0, 3).map((criteria) => (
+                      <span key={criteria} className="rounded-full bg-white/10 px-3 py-1 text-white/80">
+                        {criteria}
+                      </span>
+                    ))}
+                    <span className="rounded-full bg-white/5 px-3 py-1 text-white/60">ID: {topEntry.id}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-4">
+                  <div className="text-right">
+                    <div className="flex items-center gap-3 text-5xl font-black text-amber-200">
+                      {formatPercent(topEntry.total_score)}
+                      <span aria-hidden className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/40 bg-white/10 text-amber-200 shadow-[0_0_25px_rgba(252,211,77,0.5)]">
+                        <IconCrown className="h-6 w-6" />
+                      </span>
+                    </div>
+                    <p className="text-xs uppercase tracking-[0.4em] text-white/60">総合スコア</p>
+                  </div>
+                  <div className="relative h-24 w-24">
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#fde68a]/30 via-[#fbcfe8]/30 to-[#a5f3fc]/30 blur-3xl" aria-hidden />
+                    <div className="relative flex h-full w-full flex-col items-center justify-center rounded-full border border-white/40 bg-white/10 text-center">
+                      <span className="text-xs uppercase tracking-[0.4em] text-white/70">Tier</span>
+                      <span className="font-display text-4xl font-bold text-white">{topEntry.tier}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 space-y-3">
+                <div className="relative h-4 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#fde047] via-[#f97316] to-[#ec4899] shadow-[0_0_25px_rgba(249,115,22,0.65)] transition-all duration-700"
+                    style={{ width: `${topProgress}%` }}
+                  />
+                  <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(120deg, rgba(255,255,255,0.9) 0%, transparent 40%, rgba(255,255,255,0.9) 100%)" }} />
+                </div>
+                <div className="flex flex-wrap gap-4 text-sm text-white/80">
+                  <div className="flex items-center gap-2">
+                    <IconRadar className="h-5 w-5" />
+                    <span>トレンド指数: {formatPercent(topEntry.total_score)}</span>
+                  </div>
+                  {topEntry.top_criteria?.[0] && (
+                    <div className="flex items-center gap-2">
+                      <IconSparkles className="h-5 w-5" />
+                      <span>注目指標: {topEntry.top_criteria[0]}</span>
+                    </div>
+                  )}
+                </div>
+                {selectedId === topEntry.id && topEntry.main_reason && (
+                  <div className="rounded-3xl border border-white/20 bg-white/5 p-4 text-sm text-white/90">
+                    <p className="font-semibold tracking-wide text-amber-200">フォーカス詳細</p>
+                    <p className="mt-1 leading-relaxed">{topEntry.main_reason}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </button>
+        ) : (
+          <div className="rounded-3xl border border-dashed border-slate-200 bg-white/70 p-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-transparent dark:text-slate-300">ランキングデータがまだありません。</div>
+        )}
+
+        {otherEntries.length > 0 && (
+          <div className="space-y-4">
+            <p className="text-sm font-semibold uppercase tracking-[0.4em] text-slate-400">ほかの順位</p>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {otherEntries.map((entry, index) => {
+                const displayRank = index + 2;
+                const isSelected = entry.id === selectedId;
+                const ratio = clampProgress(entry.total_score) * 100;
+                const firstCriteria = entry.top_criteria?.[0];
+                const detailNote = entry.main_reason ?? entry.risk_notes?.[0];
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
                     onClick={() => onSelect?.(entry.id)}
                     className={clsx(
-                      "cursor-pointer transition",
-                      isSelected
-                        ? "bg-gradient-to-r from-emerald-50/90 via-sky-50/80 to-indigo-50/80 dark:from-emerald-900/40 dark:via-sky-900/30 dark:to-indigo-900/30"
-                        : isTop
-                          ? "bg-emerald-50/60 dark:bg-emerald-900/30"
-                          : "hover:bg-slate-50/80 dark:hover:bg-slate-900/40",
+                      "group relative overflow-hidden rounded-3xl border border-slate-200/60 bg-gradient-to-b from-white/95 to-white/70 p-5 text-left shadow-lg transition dark:border-slate-800/60 dark:from-slate-900/50 dark:to-slate-950/40",
+                      isSelected ? "ring-2 ring-emerald-300" : "hover:-translate-y-1",
                     )}
                   >
-                    <td className="px-6 py-4 text-lg font-semibold text-slate-900 dark:text-white">
-                      <span className="inline-flex items-center gap-2">
-                        {index + 1}
-                        {isTop && <span aria-hidden className="text-base">🏆</span>}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="text-lg font-semibold text-slate-900 dark:text-white">{entry.name}</span>
-                        <span className="text-xs text-slate-400">ID: {entry.id}</span>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.6em] text-slate-400">Rank {String(displayRank).padStart(2, "0")}</p>
+                        <p className="font-display text-2xl font-bold text-slate-900 dark:text-white">{entry.name}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-300">{firstCriteria ? `主要指標: ${firstCriteria}` : "指標詳細を開いて確認"}</p>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <TierBadge tier={entry.tier} className="px-4 py-1.5 text-sm" />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="text-xl font-semibold text-emerald-700 dark:text-emerald-300">{formatPercent(entry.total_score)}</div>
-                      <div className="mt-2 h-2 rounded-full bg-slate-200/80 dark:bg-slate-800/80">
+                      <div className="text-right">
+                        <div className="text-3xl font-black text-emerald-600 dark:text-emerald-300">{formatPercent(entry.total_score)}</div>
+                        <TierBadge tier={entry.tier} className="mt-2 px-5 py-1.5 text-base" />
+                      </div>
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      <div className="relative h-3 overflow-hidden rounded-full bg-slate-200/80 shadow-inner dark:bg-slate-800/80">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-500"
-                          style={{ width: `${scoreWidth}%` }}
+                          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-300 via-sky-400 to-indigo-500 shadow-[0_0_12px_rgba(14,165,233,0.55)] transition-all duration-500"
+                          style={{ width: `${ratio}%` }}
                         />
+                        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(120deg, rgba(255,255,255,0.8) 0%, transparent 40%, rgba(255,255,255,0.6) 100%)" }} />
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">{topCriteria}</td>
-                  </tr>
-                  {isSelected && (
-                    <tr className="bg-transparent">
-                      <td colSpan={5} className="px-6 pb-5">
-                        <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/70 p-4 text-sm text-emerald-900 shadow-sm dark:border-emerald-600/60 dark:bg-emerald-900/40 dark:text-emerald-100">
-                          <p className="font-semibold">詳細</p>
-                          <p className="mt-1">{entry.main_reason ?? "クリックして個別評価を開きましょう。"}</p>
-                          {topCriteria !== "-" && <p className="mt-1 text-emerald-700 dark:text-emerald-200">主要指標: {topCriteria}</p>}
+                      <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-500 dark:text-slate-300">
+                        {(entry.top_criteria ?? []).slice(0, 3).map((criteria) => (
+                          <span key={`${entry.id}-${criteria}`} className="rounded-full bg-slate-100 px-3 py-1 text-slate-600 dark:bg-slate-800/70 dark:text-slate-200">
+                            {criteria}
+                          </span>
+                        ))}
+                        {(entry.top_criteria?.length ?? 0) === 0 && <span className="rounded-full border border-dashed border-slate-200 px-3 py-1">情報準備中</span>}
+                      </div>
+                    </div>
+                    {isSelected && detailNote && (
+                      <div className="mt-4 rounded-2xl border border-emerald-200/70 bg-emerald-50/80 p-4 text-sm text-emerald-900 shadow-inner dark:border-emerald-500/50 dark:bg-emerald-900/30 dark:text-emerald-100">
+                        <div className="flex items-center gap-2">
+                          <IconSparkles className="h-4 w-4" />
+                          <p className="font-semibold">フォーカス</p>
                         </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+                        <p className="mt-1 leading-relaxed">{detailNote}</p>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -625,55 +740,85 @@ type TierListProps = {
 };
 
 function TierList({ tiers, tierOrder, selectedId, onSelect }: TierListProps) {
+  const palette: Record<string, { border: string; gradient: string; accent: string }> = {
+    S: { border: "border-[#fb7185]/60", gradient: "from-[#f97316]/25 via-[#fb7185]/20 to-[#f472b6]/20", accent: "text-[#fb7185]" },
+    A: { border: "border-[#34d399]/60", gradient: "from-[#34d399]/25 via-[#22d3ee]/20 to-[#818cf8]/20", accent: "text-[#10b981]" },
+    B: { border: "border-[#fbbf24]/60", gradient: "from-[#fbbf24]/25 via-[#f59e0b]/20 to-[#f97316]/20", accent: "text-[#f97316]" },
+    C: { border: "border-[#a855f7]/60", gradient: "from-[#a855f7]/20 via-[#ec4899]/20 to-[#ef4444]/20", accent: "text-[#a855f7]" },
+    default: { border: "border-slate-200", gradient: "from-slate-50 via-slate-100 to-white", accent: "text-slate-900" },
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <h3 className="font-display text-xl font-semibold text-slate-900 dark:text-white">Tierカード</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-300">Tierごとのカードをクリックして詳細を表示します。</p>
+        <h3 className="font-display text-3xl font-semibold text-slate-900 dark:text-white">Tierシグナル</h3>
+        <p className="text-base text-slate-500 dark:text-slate-300">Tierごとの大きなブロックで、所属企業数やハイライトを一目で把握できます。</p>
       </div>
-      <div className="space-y-4">
-        {tierOrder.map((tierLabel, index) => {
+      <div className="grid gap-5 lg:grid-cols-2">
+        {tierOrder.map((tierLabel) => {
           const tierData = tiers.find((entry) => entry.label === tierLabel);
-          const isTopTier = index === 0;
+          const count = tierData?.items?.length ?? 0;
+          const topItem = tierData?.items?.[0];
+          const colors = palette[tierLabel] ?? palette.default;
           return (
             <div
               key={tierLabel}
               className={clsx(
-                "flex flex-col gap-4 rounded-[32px] border bg-white/95 p-5 shadow-xl transition dark:bg-slate-950/50",
-                isTopTier
-                  ? "border-l-4 border-transparent bg-gradient-to-r from-emerald-50 via-sky-50 to-indigo-50 dark:from-emerald-900/30 dark:to-indigo-900/30"
-                  : "border-slate-200 dark:border-slate-700",
+                "relative overflow-hidden rounded-[32px] border bg-white/95 p-6 shadow-[0_25px_55px_rgba(15,23,42,0.15)] transition dark:bg-slate-950/60",
+                colors.border,
               )}
             >
-              <div className="flex items-center justify-between">
-                <div className="font-display text-2xl font-bold text-slate-900 dark:text-white">Tier {tierLabel}</div>
-                <TierBadge tier={tierLabel} className="min-w-[3rem] px-5 py-1.5 text-base" />
-              </div>
-              <div className="space-y-3 text-base text-slate-700 dark:text-slate-200">
-                {(tierData?.items ?? []).map((item) => {
-                  const isSelected = item.id === selectedId;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => onSelect?.(item.id)}
-                      className={clsx(
-                        "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-base font-medium transition",
-                        isSelected
-                          ? "border-emerald-400 bg-white/90 text-emerald-900 shadow-lg ring-2 ring-emerald-300/60 dark:border-emerald-500 dark:bg-slate-900/40 dark:text-emerald-100"
-                          : "border-transparent bg-slate-100/80 text-slate-900 hover:border-slate-200 dark:bg-slate-900/60 dark:text-slate-50",
-                      )}
-                    >
-                      <span className="text-lg font-semibold">{item.name}</span>
-                      <span className="font-display text-2xl font-bold text-emerald-700 dark:text-emerald-300">{formatPercent(item.score)}</span>
-                    </button>
-                  );
-                })}
-                {(tierData?.items?.length ?? 0) === 0 && (
-                  <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-400 dark:border-slate-600 dark:text-slate-500">
-                    該当なし
+              <div className={clsx("pointer-events-none absolute inset-0 opacity-70", `bg-gradient-to-r ${colors.gradient}`)} aria-hidden />
+              <div className="relative space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">Tier</p>
+                    <p className={clsx("font-display text-4xl font-bold", colors.accent)}> {tierLabel}</p>
                   </div>
-                )}
+                  <TierBadge tier={tierLabel} className="min-w-[4rem] px-6 py-2 text-lg" />
+                </div>
+                <div className="grid gap-3 text-sm text-slate-600 dark:text-slate-200 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-center shadow-sm dark:border-white/10 dark:bg-slate-900/60">
+                    <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Companies</p>
+                    <p className="font-display text-3xl font-bold text-slate-900 dark:text-white">{count}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/60 bg-white/80 px-4 py-3 text-center shadow-sm dark:border-white/10 dark:bg-slate-900/60">
+                    <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Top</p>
+                    <p className="font-display text-xl font-semibold text-slate-900 dark:text-white">{topItem?.name ?? "-"}</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {(tierData?.items ?? []).map((item) => {
+                    const isSelected = item.id === selectedId;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => onSelect?.(item.id)}
+                        className={clsx(
+                          "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-base font-medium transition",
+                          isSelected
+                            ? "border-emerald-400 bg-white/90 text-emerald-900 shadow-lg ring-2 ring-emerald-300/60 dark:border-emerald-500 dark:bg-slate-900/60 dark:text-emerald-100"
+                            : "border-white/60 bg-white/70 text-slate-900 hover:-translate-y-0.5 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-50",
+                        )}
+                      >
+                        <div>
+                          <p className="text-lg font-semibold">{item.name}</p>
+                          {item.top_criteria?.[0] && <p className="text-xs text-slate-400">{item.top_criteria[0]}</p>}
+                        </div>
+                        <div className="text-right">
+                          <p className="font-display text-2xl font-bold text-emerald-600 dark:text-emerald-300">{formatPercent(item.score)}</p>
+                          <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Score</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {(tierData?.items?.length ?? 0) === 0 && (
+                    <div className="rounded-2xl border border-dashed border-white/70 px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                      該当なし
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );
