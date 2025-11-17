@@ -28,16 +28,16 @@ function isScoreResponseEntry(
 
 function TierBadge({ tier }: { tier?: string }) {
   const map: Record<string, string> = {
-    S: "from-purple-600 to-purple-500",
-    A: "from-emerald-600 to-emerald-500",
-    B: "from-amber-500 to-amber-400",
-    C: "from-rose-600 to-rose-500",
+    S: "from-purple-500 to-fuchsia-500",
+    A: "from-emerald-500 to-cyan-500",
+    B: "from-sky-500 to-indigo-500",
+    C: "from-amber-500 to-orange-500",
   };
   return (
     <span
       className={clsx(
-        "inline-flex min-w-[2rem] items-center justify-center rounded-full bg-gradient-to-r px-2 py-0.5 text-xs font-semibold text-white",
-        map[tier ?? ""] ?? "from-slate-500 to-slate-400",
+        "inline-flex min-w-[2.75rem] items-center justify-center rounded-full border border-white/10 bg-white/5 text-[11px] font-semibold uppercase tracking-wide text-white shadow",
+        tier ? `bg-gradient-to-r ${map[tier] ?? "from-slate-500 to-slate-600"}` : undefined,
       )}
     >
       {tier ?? "-"}
@@ -96,14 +96,45 @@ export default function ResultTabs({
     return ["S", "A", "B", "C"];
   }, [tierResults]);
 
+  const tierDescriptions: Record<string, string> = {
+    S: "LEGENDARY DOMINANCE",
+    A: "STABLE GROWTH",
+    B: "PROMISING UPSIDE",
+    C: "CHALLENGE MODE",
+    D: "RISKY BET",
+  };
+
+  const tierVisuals: Record<string, { card: string; emblem: string }> = {
+    S: {
+      card: "border-purple-500/40 bg-gradient-to-br from-purple-950/70 via-slate-950/50 to-black/40",
+      emblem: "from-purple-500 via-fuchsia-500 to-rose-500",
+    },
+    A: {
+      card: "border-emerald-500/40 bg-gradient-to-br from-emerald-950/60 via-slate-950/50 to-black/40",
+      emblem: "from-emerald-500 via-cyan-500 to-teal-400",
+    },
+    B: {
+      card: "border-sky-500/30 bg-gradient-to-br from-slate-900/70 via-sky-950/40 to-black/40",
+      emblem: "from-sky-500 via-indigo-500 to-purple-500",
+    },
+    C: {
+      card: "border-amber-500/30 bg-gradient-to-br from-amber-950/50 via-slate-950/50 to-black/40",
+      emblem: "from-amber-500 via-orange-500 to-rose-500",
+    },
+    D: {
+      card: "border-rose-500/30 bg-gradient-to-br from-rose-950/50 via-slate-950/50 to-black/40",
+      emblem: "from-rose-500 via-red-500 to-orange-500",
+    },
+  };
+
   const chartPalette = ["#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#ccfbf1"];
   const chipClasses = [
-    "bg-emerald-600 text-white",
-    "bg-emerald-500 text-white",
-    "bg-emerald-400 text-emerald-950",
-    "bg-emerald-300 text-emerald-900",
-    "bg-emerald-200 text-emerald-800",
-    "bg-emerald-100 text-emerald-700",
+    "border border-white/10 bg-emerald-500/40 text-white",
+    "border border-white/10 bg-emerald-400/30 text-emerald-50",
+    "border border-white/10 bg-emerald-300/20 text-emerald-100",
+    "border border-white/10 bg-emerald-200/10 text-emerald-100",
+    "border border-white/10 bg-emerald-100/10 text-emerald-200",
+    "border border-white/10 bg-emerald-50/10 text-emerald-200",
   ];
 
   const metricLegend = useMemo(
@@ -158,8 +189,8 @@ export default function ResultTabs({
   return (
     <div ref={containerRef} className="flex h-full flex-col gap-4">
       {metricLegend.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-50/80 p-3 text-xs font-medium text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-900/20 dark:text-emerald-100">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">指標凡例</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs font-medium text-emerald-100">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-200">指標凡例</span>
           {metricLegend.map((entry) => (
             <span key={entry.name} className={clsx("flex items-center gap-2 rounded-full px-3 py-1", entry.chipClass)}>
               <span
@@ -174,76 +205,131 @@ export default function ResultTabs({
       )}
 
       {tab === "tier" && (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {(scoreResponse ? tierOrder : ["S", "A", "B", "C"]).map((tier) => {
             const tierData = scoreResponse ? tierResults.find((entry) => entry.label === tier) : undefined;
             const tierItems = scoreResponse
               ? tierData?.items ?? []
               : ranked.filter((item) => (item.tier ?? "").toUpperCase() === tier.toUpperCase());
+
+            const decoratedItems = tierItems
+              .map((item) => {
+                const scoreEntry = scoreLookup?.get(item.id);
+                const scoreValue = scoreResponse
+                  ? Math.max(0, Math.min(1, scoreEntry?.total_score ?? (item as any).score ?? 0))
+                  : Math.max(0, Math.min(1, (item as AgentItem).score ?? 0));
+                const label = scoreResponse
+                  ? scoreEntry?.name || (item as any).name || nameMap.get(item.id) || item.id
+                  : nameMap.get(item.id) ?? (item as AgentItem).id;
+                const reasonText = scoreResponse
+                  ? scoreEntry?.main_reason || scoreEntry?.criteria_breakdown?.[0]?.reason
+                  : (item as AgentItem).reason;
+                const criteria = scoreResponse
+                  ? scoreEntry?.top_criteria?.length
+                    ? scoreEntry.top_criteria
+                    : (scoreEntry?.criteria_breakdown ?? [])
+                        .slice()
+                        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+                        .slice(0, 3)
+                        .map((entry) => entry.key)
+                  : Object.entries((item as AgentItem).contrib ?? {})
+                      .map(([key, value]) => ({ key, value: Number(value) }))
+                      .filter((entry) => Number.isFinite(entry.value))
+                      .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+                      .slice(0, 3)
+                      .map((entry) => entry.key);
+                return { item, scoreEntry, scoreValue, label, reasonText, criteria };
+              })
+              .sort((a, b) => b.scoreValue - a.scoreValue);
+
+            const averageScore = decoratedItems.length
+              ? decoratedItems.reduce((sum, entry) => sum + entry.scoreValue, 0) / decoratedItems.length
+              : 0;
+            const tierVisual = tierVisuals[tier] ?? {
+              card: "border-white/10 bg-slate-900/70",
+              emblem: "from-slate-500 to-slate-700",
+            };
+
             return (
               <div
                 key={tier}
-                className="rounded-xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/50"
+                className={clsx(
+                  "relative overflow-hidden rounded-3xl p-5 text-white shadow-[0_0_40px_rgba(15,118,110,0.25)]",
+                  tierVisual.card,
+                )}
               >
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="font-semibold">Tier {tier}</div>
-                  <TierBadge tier={tier} />
+                <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(120deg, rgba(255,255,255,0.08), rgba(2,6,23,0.8))" }} />
+                <div className="relative flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.4em] text-white/60">Tier {tier}</p>
+                    <p className="mt-1 text-2xl font-black tracking-wide">{tierDescriptions[tier] ?? "TIER"}</p>
+                    <p className="text-xs text-white/70">{tierData?.definition ?? "エンブレム化された強さシグナル"}</p>
+                  </div>
+                  <div className="flex flex-col items-end text-right">
+                    <div
+                      className={clsx(
+                        "flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/40 bg-gradient-to-br text-lg font-black",
+                        tierVisual.emblem,
+                      )}
+                    >
+                      {tier}
+                    </div>
+                    <TierBadge tier={tier} />
+                  </div>
                 </div>
-                <ul className="space-y-3">
-                  {tierItems.map((item) => {
-                    const scoreEntry = scoreLookup?.get(item.id);
-                    const scoreValue = scoreResponse
-                      ? Math.max(0, Math.min(1, scoreEntry?.total_score ?? (item as any).score ?? 0))
-                      : Math.max(0, Math.min(1, (item as AgentItem).score ?? 0));
-                    const label = scoreResponse
-                      ? scoreEntry?.name || (item as any).name || nameMap.get(item.id) || item.id
-                      : nameMap.get(item.id) ?? (item as AgentItem).id;
-                    const reasonText = scoreResponse
-                      ? scoreEntry?.main_reason || scoreEntry?.criteria_breakdown?.[0]?.reason
-                      : (item as AgentItem).reason;
-                    const criteria = scoreResponse
-                      ? scoreEntry?.top_criteria?.length
-                        ? scoreEntry.top_criteria
-                        : (scoreEntry?.criteria_breakdown ?? [])
-                            .slice()
-                            .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-                            .slice(0, 3)
-                            .map((entry) => entry.key)
-                      : [];
-                    return (
-                      <li key={item.id} className="space-y-1 text-sm">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate" title={label}>
-                            {label}
-                          </span>
-                          <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-200">
-                            {(scoreValue * 100).toFixed(1)}%
-                          </span>
+
+                <dl className="relative mt-5 grid grid-cols-3 gap-3 text-[11px] uppercase text-white/60">
+                  <div>
+                    <dt>企業数</dt>
+                    <dd className="text-lg font-semibold text-white">{decoratedItems.length}</dd>
+                  </div>
+                  <div>
+                    <dt>平均スコア</dt>
+                    <dd className="text-lg font-semibold text-emerald-200">{(averageScore * 100).toFixed(1)}%</dd>
+                  </div>
+                  <div>
+                    <dt>トップ企業</dt>
+                    <dd className="truncate text-base font-semibold text-white">{decoratedItems[0]?.label ?? "-"}</dd>
+                  </div>
+                </dl>
+
+                <div className="relative mt-6 max-h-48 space-y-3 overflow-y-auto pr-1">
+                  {decoratedItems.map((entry) => (
+                    <div key={entry.item.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-white" title={entry.label}>
+                            {entry.label}
+                          </p>
+                          <p className="text-[11px] text-white/60">{entry.item.id}</p>
                         </div>
-                        <div className="h-2 rounded-full bg-emerald-100 dark:bg-emerald-900/40">
-                          <div
-                            className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                            style={{ width: `${scoreValue * 100}%` }}
-                          />
-                        </div>
-                        {reasonText && <p className="text-xs text-text-muted">{reasonText}</p>}
-                        {criteria.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {criteria.map((criterion) => (
-                              <span
-                                key={`${item.id}-${criterion}`}
-                                className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-200"
-                              >
-                                {criterion}
-                              </span>
-                            ))}
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-emerald-200">{(entry.scoreValue * 100).toFixed(1)}%</p>
+                          <div className="mt-1 h-1.5 w-24 rounded-full bg-white/10">
+                            <div
+                              className="h-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400"
+                              style={{ width: `${entry.scoreValue * 100}%` }}
+                            />
                           </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                  {tierItems.length === 0 && <li className="text-sm text-text-muted">該当なし</li>}
-                </ul>
+                        </div>
+                      </div>
+                      {entry.reasonText && <p className="mt-2 text-xs text-white/70">{entry.reasonText}</p>}
+                      {entry.criteria.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {entry.criteria.map((criterion) => (
+                            <span
+                              key={`${entry.item.id}-${criterion}`}
+                              className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-white/70"
+                            >
+                              {criterion}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {decoratedItems.length === 0 && <p className="text-sm text-white/70">該当なし</p>}
+                </div>
               </div>
             );
           })}
