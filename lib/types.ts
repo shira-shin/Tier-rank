@@ -94,6 +94,7 @@ export type TierItemResult = {
 export type TierResult = {
   label: string;
   items: TierItemResult[];
+  definition?: string;
 };
 
 export type ScoreRow = {
