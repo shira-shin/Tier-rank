@@ -54,6 +54,7 @@ export type ScoreRequest = {
 
 export type AgentItem = {
   id: string;
+  name?: string;
   score?: number;
   contrib?: Record<string, number>;
   tier?: string;
