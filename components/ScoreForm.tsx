@@ -87,6 +87,29 @@ const SEARCH_DEPTH_SUMMARY: Record<SearchDepth, string> = {
   deep: "肯定・否定の両面を深掘りし、複数の根拠を集めます。",
 };
 
+const HISTORY_CARD_STYLES = [
+  {
+    border: "border-sky-300/40",
+    gradient: "from-slate-950/80 via-sky-900/40 to-slate-900/70",
+    shadow: "shadow-[0_30px_60px_rgba(14,165,233,0.18)]",
+  },
+  {
+    border: "border-emerald-300/40",
+    gradient: "from-slate-950/80 via-emerald-900/40 to-slate-900/70",
+    shadow: "shadow-[0_30px_60px_rgba(16,185,129,0.18)]",
+  },
+  {
+    border: "border-amber-300/40",
+    gradient: "from-slate-950/80 via-amber-900/40 to-slate-900/70",
+    shadow: "shadow-[0_30px_60px_rgba(251,191,36,0.22)]",
+  },
+];
+
+function formatPercent(value?: number | null) {
+  if (typeof value !== "number" || Number.isNaN(value)) return "-";
+  return `${(value * 100).toFixed(1)}%`;
+}
+
 type HistoryEntry = {
   id: string;
   title: string;
@@ -101,6 +124,7 @@ type HistoryEntry = {
 
 type ScoreFormProps = {
   initialProjectSlug?: string;
+  displayContext?: "default" | "home";
 };
 
 function createHistoryId() {
@@ -173,7 +197,7 @@ function isScoreResponseEntry(
   return "total_score" in entry;
 }
 
-export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
+export function ScoreForm({ initialProjectSlug, displayContext = "default" }: ScoreFormProps = {}) {
   const { data: session } = useSession();
   const [items, setItems] = useState<ItemInput[]>(() => DEFAULT_ITEMS.map((item) => ({ ...item })));
   const [metrics, setMetrics] = useState<MetricInput[]>(() => SIMPLE_METRICS.map((metric) => ({ ...metric })));
@@ -198,6 +222,7 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
   }>({});
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishStatus, setPublishStatus] = useState<"idle" | "loading" | "success">("idle");
+  const isHomeContext = displayContext === "home";
   const [publishError, setPublishError] = useState<string | undefined>();
   const [publishedSlug, setPublishedSlug] = useState<string | undefined>();
   const [publishTitle, setPublishTitle] = useState("");
@@ -801,10 +826,59 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
     }
   }
 
+  const bestCandidate =
+    scoreResponse && scoreResponse.scores.length > 0
+      ? [...scoreResponse.scores].sort((a, b) => b.total_score - a.total_score)[0]
+      : undefined;
+  const averageScore =
+    scoreResponse && scoreResponse.scores.length > 0
+      ? scoreResponse.scores.reduce((sum, entry) => sum + entry.total_score, 0) /
+        scoreResponse.scores.length
+      : undefined;
+  const resultStats = scoreResponse
+    ? [
+        { label: "候補数", value: scoreResponse.scores.length.toString() },
+        { label: "ティア構成", value: `${scoreResponse.tiers.length} 種類` },
+        { label: "平均スコア", value: formatPercent(averageScore) },
+      ]
+    : [];
+
   if (view === "result") {
     return (
       <div className="relative pb-16">
         <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+          {bestCandidate && (
+            <div className="mb-10 rounded-[40px] border border-white/15 bg-gradient-to-br from-emerald-500/20 via-sky-500/20 to-indigo-500/10 p-[1px] shadow-[0_25px_70px_rgba(15,23,42,0.55)]">
+              <div className="rounded-[38px] bg-slate-950/80 p-8 text-white backdrop-blur-xl">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.4em] text-white/60">結果ハイライト</p>
+                    <h1 className="text-3xl font-black tracking-tight">AIレポートが完成しました</h1>
+                    <p className="text-sm text-white/70">
+                      {bestCandidate.main_reason ?? "トップ候補の根拠がまとめられています。"}
+                    </p>
+                  </div>
+                  <div className="flex min-w-[260px] flex-col gap-3 rounded-[32px] border border-white/20 bg-white/5 p-6 text-white">
+                    <p className="text-xs uppercase tracking-[0.3em] text-white/60">Top Candidate</p>
+                    <p className="text-3xl font-black">{bestCandidate.name}</p>
+                    <p className="text-sm text-white/70">
+                      Tier {bestCandidate.tier ?? "-"} / {formatPercent(bestCandidate.total_score)}
+                    </p>
+                  </div>
+                </div>
+                {resultStats.length > 0 && (
+                  <div className="mt-6 grid gap-3 md:grid-cols-3">
+                    {resultStats.map((stat) => (
+                      <div key={stat.label} className="rounded-2xl border border-white/15 bg-white/5 p-4 text-sm">
+                        <p className="text-xs uppercase tracking-[0.4em] text-white/60">{stat.label}</p>
+                        <p className="text-2xl font-semibold">{stat.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {scoreResponse && result ? (
             <ResultReport
               response={scoreResponse}
@@ -1350,66 +1424,145 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
                 </div>
               )}
 
-              {history.length > 0 && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="font-medium">保存済みの履歴</div>
-                    <span className="rounded bg-slate-200 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-200">
-                      {history.length} 件
-                    </span>
-                  </div>
-                  <ul className="space-y-3">
-                    {history.map((entry) => (
-                      <li key={entry.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+          {history.length > 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="font-medium">保存済みの履歴</div>
+                <span className="rounded-full bg-slate-900/80 px-3 py-1 text-xs font-semibold text-white dark:bg-white/10">
+                  {history.length} 件
+                </span>
+              </div>
+              <ul className="grid gap-4 lg:grid-cols-2">
+                {history.map((entry, historyIndex) => {
+                  const preset = HISTORY_CARD_STYLES[historyIndex % HISTORY_CARD_STYLES.length];
+                  const snapshotItems = entry.itemsSnapshot ?? ((entry.payload as any)?.candidates ?? []);
+                  const snapshotMetrics = entry.metricsSnapshot ?? ((entry.payload as any)?.criteria ?? []);
+                  const rankedHistory = [...(entry.result?.items ?? [])].sort(
+                    (a, b) => (b.score ?? 0) - (a.score ?? 0),
+                  );
+                  const topHistory = rankedHistory[0];
+                  const nameMap = new Map(snapshotItems.map((item) => [item.id, item.name ?? item.id]));
+                  const topLabel = topHistory?.id ? nameMap.get(topHistory.id) ?? topHistory.id : undefined;
+                  const savedAt = new Date(entry.createdAt).toLocaleString("ja-JP", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                  const summaryPreview =
+                    entry.summaryText ??
+                    (topLabel ? `${topLabel} が Tier ${topHistory?.tier ?? "-"} に選出されました。` : undefined);
+                  return (
+                    <li
+                      key={entry.id}
+                      className={`relative overflow-hidden rounded-[28px] border ${preset.border} bg-gradient-to-br ${preset.gradient} p-[1px] ${preset.shadow}`}
+                    >
+                      <div className="flex h-full flex-col gap-4 rounded-[26px] bg-white/95 p-5 text-slate-900 shadow-2xl dark:bg-slate-950/80 dark:text-white">
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <div className="text-sm font-semibold">{entry.title}</div>
-                            <div className="text-xs text-text-muted">{new Date(entry.createdAt).toLocaleString()}</div>
+                            <div className="text-sm font-semibold">{entry.title || "無題の評価"}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">{savedAt}</div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleLoadHistory(entry)}
-                              className="rounded-xl border border-slate-300 px-4 py-2 text-sm transition hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
-                            >
-                              反映
-                            </button>
-                            <button
-                              onClick={() => handleDeleteHistory(entry.id)}
-                              className="rounded-xl px-4 py-2 text-sm text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                            >
-                              削除
-                            </button>
+                          <div className="rounded-full bg-slate-900/90 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white">
+                            {topHistory?.tier ?? "-"}
                           </div>
                         </div>
-                        {entry.summaryText && (
-                          <div className="mt-2 max-h-20 overflow-hidden text-ellipsis text-xs text-text-muted">
-                            {entry.summaryText}
+                        <div className="grid grid-cols-3 gap-3 text-center text-xs">
+                          <div className="rounded-2xl border border-slate-200/80 bg-white/80 px-3 py-2 dark:border-white/10 dark:bg-white/5">
+                            <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500 dark:text-slate-300">候補</p>
+                            <p className="text-lg font-semibold">{snapshotItems.length}</p>
                           </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+                          <div className="rounded-2xl border border-slate-200/80 bg-white/80 px-3 py-2 dark:border-white/10 dark:bg-white/5">
+                            <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500 dark:text-slate-300">指標</p>
+                            <p className="text-lg font-semibold">{snapshotMetrics.length}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200/80 bg-white/80 px-3 py-2 dark:border-white/10 dark:bg-white/5">
+                            <p className="text-[11px] uppercase tracking-[0.3em] text-slate-500 dark:text-slate-300">Top</p>
+                            <p className="text-sm font-semibold">{topLabel ?? "-"}</p>
+                            <p className="text-[11px] text-emerald-600 dark:text-emerald-300">{formatPercent(topHistory?.score)}</p>
+                          </div>
+                        </div>
+                        {summaryPreview && <p className="flex-1 text-sm text-slate-600 dark:text-slate-200">{summaryPreview}</p>}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleLoadHistory(entry)}
+                            className="flex-1 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 dark:bg-white/10"
+                          >
+                            反映する
+                          </button>
+                          <button
+                            onClick={() => handleDeleteHistory(entry.id)}
+                            className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
+                          >
+                            削除
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
             </div>
           </div>
 
         </div>
       </DragDropContext>
 
-      <div className="pointer-events-none fixed bottom-6 left-1/2 z-40 w-[min(960px,92vw)] -translate-x-1/2">
-        <div className="pointer-events-auto flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-2xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
+      <div
+        className={clsx(
+          "pointer-events-none",
+          isHomeContext
+            ? "relative z-10 mx-auto mt-12 w-full max-w-5xl"
+            : "fixed bottom-6 left-1/2 z-40 w-[min(960px,92vw)] -translate-x-1/2",
+        )}
+      >
+        <div
+          className={clsx(
+            "pointer-events-auto flex flex-col gap-4 rounded-3xl border p-6 shadow-2xl backdrop-blur",
+            isHomeContext
+              ? "border-white/20 bg-slate-950/80 text-white"
+              : "border-slate-200 bg-white/95 text-slate-900 dark:border-slate-700 dark:bg-slate-900/90 dark:text-white",
+          )}
+        >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="text-base font-semibold">🚀 AI評価を実行</div>
-              <div className="text-sm text-text-muted">候補 {items.length} 件 / 指標 {metrics.length} 件</div>
+              <div className={clsx("text-base font-semibold", isHomeContext ? "text-white" : undefined)}>🚀 AI評価を実行</div>
+              <div
+                className={clsx(
+                  "text-sm",
+                  isHomeContext ? "text-white/70" : "text-text-muted",
+                )}
+              >
+                候補 {items.length} 件 / 指標 {metrics.length} 件
+              </div>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-3">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                <span className="rounded-full bg-slate-200 px-3 py-1 text-xs text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">
+              <div
+                className={clsx(
+                  "flex items-center gap-2 text-xs font-semibold uppercase tracking-wide",
+                  isHomeContext ? "text-white/80" : "text-slate-600 dark:text-slate-300",
+                )}
+              >
+                <span
+                  className={clsx(
+                    "rounded-full px-3 py-1 text-xs",
+                    isHomeContext
+                      ? "bg-white/10 text-white"
+                      : "bg-slate-200 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100",
+                  )}
+                >
                   AI {Math.max(0, effectiveScoreRemaining)} / {maxScorePerDay}
                 </span>
-                <span className="rounded-full bg-slate-200 px-3 py-1 text-xs text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">
+                <span
+                  className={clsx(
+                    "rounded-full px-3 py-1 text-xs",
+                    isHomeContext
+                      ? "bg-white/10 text-white"
+                      : "bg-slate-200 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100",
+                  )}
+                >
                   Web {Math.max(0, effectiveWebRemaining)} / {maxWebPerDay}
                 </span>
               </div>
@@ -1433,18 +1586,27 @@ export function ScoreForm({ initialProjectSlug }: ScoreFormProps = {}) {
               </button>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-sm">
+          <div
+            className={clsx(
+              "flex flex-wrap items-center gap-3 text-sm",
+              isHomeContext ? "text-white/80" : undefined,
+            )}
+          >
             {projectSlugMissing && !loading && !error ? (
-              <span className="text-rose-500">AIプロジェクトが設定されていません。管理者にお問い合わせください。</span>
+              <span className={isHomeContext ? "text-rose-300" : "text-rose-500"}>
+                AIプロジェクトが設定されていません。管理者にお問い合わせください。
+              </span>
             ) : loading ? (
-              <span className="flex items-center gap-2 text-sky-600">
+              <span className={clsx("flex items-center gap-2", isHomeContext ? "text-sky-200" : "text-sky-600")}>
                 <span className="h-2 w-2 animate-ping rounded-full bg-sky-500" />
                 処理中… AIの結果を待機しています。
               </span>
             ) : error ? (
-              <span className="text-rose-500">{error}</span>
+              <span className={isHomeContext ? "text-rose-300" : "text-rose-500"}>{error}</span>
             ) : (
-              <span className="text-text-muted">左側のステップを埋めたら「AIに評価を依頼する」を押してください。</span>
+              <span className={isHomeContext ? "text-white/70" : "text-text-muted"}>
+                左側のステップを埋めたら「AIに評価を依頼する」を押してください。
+              </span>
             )}
           </div>
           {(publishStatus === "success" && publishedUrl) || publishError ? (
