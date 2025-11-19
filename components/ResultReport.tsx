@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
   type MutableRefObject,
+  type ReactNode,
   type RefObject,
   type SVGProps,
 } from "react";
@@ -199,6 +200,7 @@ type ResultReportProps = {
   onExportDocx: () => void;
   viewRef: RefObject<HTMLDivElement>;
   reportRef: RefObject<HTMLDivElement>;
+  actionSlot?: ReactNode;
 };
 
 export function ResultReport({
@@ -216,6 +218,7 @@ export function ResultReport({
   onExportDocx,
   viewRef,
   reportRef,
+  actionSlot,
 }: ResultReportProps) {
   const sortedScores = useMemo(
     () => [...response.scores].sort((a, b) => b.total_score - a.total_score),
@@ -331,56 +334,60 @@ export function ResultReport({
           </section>
 
           <section className="space-y-5 rounded-[32px] border border-slate-200/70 bg-white/90 p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900/70 lg:sticky lg:top-6">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">アクション</p>
-              <span className="text-xs uppercase tracking-[0.4em] text-slate-400">Quick</span>
-            </div>
-            <div className="grid gap-3">
-              <button
-                type="button"
-                onClick={onOpenPublish}
-                disabled={publishDisabled}
-                className="group relative flex items-center justify-between overflow-hidden rounded-3xl bg-gradient-to-r from-[#ff5f6d] via-[#ff9966] to-[#f6d365] px-5 py-4 text-base font-semibold text-white shadow-[0_25px_45px_rgba(255,95,109,0.35)] transition-transform duration-200 hover:-translate-y-0.5 disabled:opacity-60"
-              >
-                <span className="flex items-center gap-2">
-                  <IconCrown className="h-5 w-5 animate-pulse text-white/90" /> 公開設定
-                </span>
-                <span aria-hidden className="text-lg font-bold">
-                  ↗
-                </span>
-                <span className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-30" style={{ background: "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.9), transparent 45%)" }} />
-              </button>
-              <button
-                type="button"
-                onClick={onBack}
-                className="flex items-center justify-between rounded-3xl border border-slate-200/80 bg-gradient-to-r from-white/90 to-slate-50/80 px-5 py-4 text-base font-semibold text-slate-900 shadow-lg shadow-slate-200/60 transition hover:-translate-y-0.5 dark:border-slate-700/80 dark:from-slate-900/50 dark:to-slate-900/30 dark:text-white"
-              >
-                <span className="flex items-center gap-2">入力に戻る</span>
-                <span aria-hidden>⟲</span>
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-200">
-              <div className="rounded-2xl border border-slate-100/80 bg-white/80 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
-                <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">指標</p>
-                <p className="font-display text-3xl font-bold text-slate-900 dark:text-white">{metrics.length}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-100/80 bg-white/80 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
-                <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">履歴保存</p>
-                <p className="font-display text-3xl font-bold text-emerald-600 dark:text-emerald-300">AI</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 text-sm">
-              {[{ label: "JSON", action: onExportJSON }, { label: "CSV", action: onExportCSV }, { label: "PNG", action: onExportPNG }, { label: "PDF", action: onExportPDF }, { label: "Word", action: onExportDocx }].map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={item.action}
-                  className="rounded-full border border-slate-200/80 bg-white/80 px-4 py-2 font-semibold text-slate-700 shadow-sm transition hover:bg-gradient-to-r hover:from-[#a5f3fc] hover:to-[#fbcfe8] hover:text-slate-900 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100"
-                >
-                  {item.label} 保存
-                </button>
-              ))}
-            </div>
+            {actionSlot ?? (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">アクション</p>
+                  <span className="text-xs uppercase tracking-[0.4em] text-slate-400">Quick</span>
+                </div>
+                <div className="grid gap-3">
+                  <button
+                    type="button"
+                    onClick={onOpenPublish}
+                    disabled={publishDisabled}
+                    className="group relative flex items-center justify-between overflow-hidden rounded-3xl bg-gradient-to-r from-[#ff5f6d] via-[#ff9966] to-[#f6d365] px-5 py-4 text-base font-semibold text-white shadow-[0_25px_45px_rgba(255,95,109,0.35)] transition-transform duration-200 hover:-translate-y-0.5 disabled:opacity-60"
+                  >
+                    <span className="flex items-center gap-2">
+                      <IconCrown className="h-5 w-5 animate-pulse text-white/90" /> 公開設定
+                    </span>
+                    <span aria-hidden className="text-lg font-bold">
+                      ↗
+                    </span>
+                    <span className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:opacity-30" style={{ background: "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.9), transparent 45%)" }} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    className="flex items-center justify-between rounded-3xl border border-slate-200/80 bg-gradient-to-r from-white/90 to-slate-50/80 px-5 py-4 text-base font-semibold text-slate-900 shadow-lg shadow-slate-200/60 transition hover:-translate-y-0.5 dark:border-slate-700/80 dark:from-slate-900/50 dark:to-slate-900/30 dark:text-white"
+                  >
+                    <span className="flex items-center gap-2">入力に戻る</span>
+                    <span aria-hidden>⟲</span>
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-200">
+                  <div className="rounded-2xl border border-slate-100/80 bg-white/80 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
+                    <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">指標</p>
+                    <p className="font-display text-3xl font-bold text-slate-900 dark:text-white">{metrics.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100/80 bg-white/80 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
+                    <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">履歴保存</p>
+                    <p className="font-display text-3xl font-bold text-emerald-600 dark:text-emerald-300">AI</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-sm">
+                  {[{ label: "JSON", action: onExportJSON }, { label: "CSV", action: onExportCSV }, { label: "PNG", action: onExportPNG }, { label: "PDF", action: onExportPDF }, { label: "Word", action: onExportDocx }].map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={item.action}
+                      className="rounded-full border border-slate-200/80 bg-white/80 px-4 py-2 font-semibold text-slate-700 shadow-sm transition hover:bg-gradient-to-r hover:from-[#a5f3fc] hover:to-[#fbcfe8] hover:text-slate-900 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100"
+                    >
+                      {item.label} 保存
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </section>
         </div>
 
