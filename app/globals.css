@@ -5,17 +5,17 @@
 :root {
   color-scheme: light;
   --surface-bg: #ffffff;
-  --surface-strong-bg: #f8fafc;
-  --text-muted: #64748b;
-  background-color: #f1f5f9;
+  --surface-strong-bg: #f8f9fa;
+  --text-muted: #475569;
+  background-color: #f8f9fa;
 }
 
 .dark {
-  color-scheme: dark;
-  --surface-bg: #0f172a;
-  --surface-strong-bg: #1e293b;
-  --text-muted: #94a3b8;
-  background-color: #020617;
+  color-scheme: light;
+  --surface-bg: #ffffff;
+  --surface-strong-bg: #f8f9fa;
+  --text-muted: #475569;
+  background-color: #f8f9fa;
 }
 
 html,
@@ -24,21 +24,8 @@ body {
 }
 
 body {
-  @apply text-slate-900 dark:text-slate-100;
-  background-color: #f6f7fb;
-  background-image:
-    radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.25), transparent 45%),
-    radial-gradient(circle at 80% 0%, rgba(236, 72, 153, 0.25), transparent 55%),
-    linear-gradient(180deg, #f8fafc 0%, #eef2ff 50%, #fdf2f8 100%);
-  background-attachment: fixed;
-}
-
-.dark body {
-  background-color: #030712;
-  background-image:
-    radial-gradient(circle at 5% 25%, rgba(56, 189, 248, 0.25), transparent 50%),
-    radial-gradient(circle at 85% 10%, rgba(217, 70, 239, 0.25), transparent 60%),
-    linear-gradient(180deg, #020617 0%, #0f172a 60%, #111827 100%);
+  @apply text-slate-900;
+  background-color: #f8f9fa;
 }
 
 .font-display {
