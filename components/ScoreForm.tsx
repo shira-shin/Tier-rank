@@ -1435,7 +1435,12 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
               <ul className="grid gap-4 lg:grid-cols-2">
                 {history.map((entry, historyIndex) => {
                   const preset = HISTORY_CARD_STYLES[historyIndex % HISTORY_CARD_STYLES.length];
-                  const snapshotItems = entry.itemsSnapshot ?? ((entry.payload as any)?.candidates ?? []);
+                  const snapshotItems: ItemInput[] =
+                    entry.itemsSnapshot ??
+                    (entry.payload?.candidates ?? []).map((candidate) => ({
+                      id: candidate.id,
+                      name: candidate.name,
+                    }));
                   const snapshotMetrics = entry.metricsSnapshot ?? ((entry.payload as any)?.criteria ?? []);
                   const rankedHistory = [...(entry.result?.items ?? [])].sort(
                     (a, b) => (b.score ?? 0) - (a.score ?? 0),
