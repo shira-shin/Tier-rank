@@ -324,11 +324,11 @@ export function ResultReport({
             </div>
           </section>
 
-          <section className="space-y-5 rounded-[32px] border border-slate-200/70 bg-white/90 p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900/70 lg:sticky lg:top-6">
+          <section className="space-y-5 rounded-[32px] border border-slate-200 bg-white p-6 shadow-2xl lg:sticky lg:top-6">
             {actionSlot ?? (
               <>
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-500 dark:text-slate-300">アクション</p>
+                  <p className="text-sm font-semibold text-slate-500">アクション</p>
                   <span className="text-xs uppercase tracking-[0.4em] text-slate-400">Quick</span>
                 </div>
                 <div className="grid gap-3">
@@ -349,20 +349,20 @@ export function ResultReport({
                   <button
                     type="button"
                     onClick={onBack}
-                    className="flex items-center justify-between rounded-3xl border border-slate-200/80 bg-gradient-to-r from-white/90 to-slate-50/80 px-5 py-4 text-base font-semibold text-slate-900 shadow-lg shadow-slate-200/60 transition hover:-translate-y-0.5 dark:border-slate-700/80 dark:from-slate-900/50 dark:to-slate-900/30 dark:text-white"
+                    className="flex items-center justify-between rounded-3xl border border-slate-200 bg-gradient-to-r from-white to-slate-50 px-5 py-4 text-base font-semibold text-slate-900 shadow-lg shadow-slate-200/60 transition hover:-translate-y-0.5"
                   >
                     <span className="flex items-center gap-2">入力に戻る</span>
                     <span aria-hidden>⟲</span>
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-200">
-                  <div className="rounded-2xl border border-slate-100/80 bg-white/80 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
-                    <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">指標</p>
-                    <p className="font-display text-3xl font-bold text-slate-900 dark:text-white">{metrics.length}</p>
+                <div className="grid grid-cols-2 gap-4 text-sm text-slate-700">
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                    <p className="text-xs uppercase tracking-wider text-slate-500">指標</p>
+                    <p className="font-display text-3xl font-bold text-slate-900">{metrics.length}</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-100/80 bg-white/80 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
-                    <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">履歴保存</p>
-                    <p className="font-display text-3xl font-bold text-emerald-600 dark:text-emerald-300">AI</p>
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                    <p className="text-xs uppercase tracking-wider text-slate-500">履歴保存</p>
+                    <p className="font-display text-3xl font-bold text-emerald-600">AI</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 text-sm">
@@ -371,7 +371,7 @@ export function ResultReport({
                       key={item.label}
                       type="button"
                       onClick={item.action}
-                      className="rounded-full border border-slate-200/80 bg-white/80 px-4 py-2 font-semibold text-slate-700 shadow-sm transition hover:bg-gradient-to-r hover:from-[#a5f3fc] hover:to-[#fbcfe8] hover:text-slate-900 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100"
+                      className="rounded-full border border-slate-200 bg-white px-4 py-2 font-semibold text-slate-700 shadow-sm transition hover:bg-gradient-to-r hover:from-[#a5f3fc] hover:to-[#fbcfe8] hover:text-slate-900"
                     >
                       {item.label} 保存
                     </button>
@@ -384,24 +384,24 @@ export function ResultReport({
 
         <article
           ref={assignReportRef}
-          className="space-y-8 rounded-[32px] border border-slate-200/80 bg-white/90 p-6 shadow-2xl dark:border-white/10 dark:bg-slate-950/60"
+          className="space-y-8 rounded-[32px] border border-slate-200 bg-white p-6 shadow-2xl"
         >
           <section className="space-y-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-300">ランキング / Tier一覧</p>
-                <h2 className="font-display text-3xl font-bold text-slate-900 dark:text-white">ダッシュボード</h2>
-                <p className="text-base text-slate-500 dark:text-slate-300">クリックで詳細を展開して、トヨタなど注目の候補を掘り下げましょう。</p>
+                <p className="text-sm font-medium text-slate-600">ランキング / Tier一覧</p>
+                <h2 className="font-display text-3xl font-bold text-slate-900">ダッシュボード</h2>
+                <p className="text-base text-slate-600">クリックで詳細を展開して、トヨタなど注目の候補を掘り下げましょう。</p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <div className="inline-flex rounded-full bg-slate-100/80 p-1 text-sm dark:bg-slate-800/80">
+                <div className="inline-flex rounded-full bg-slate-100 p-1 text-sm">
                   <button
                     type="button"
                     className={clsx(
                       "rounded-full px-4 py-1",
                       viewMode === "ranking"
-                        ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900/70 dark:text-white"
-                        : "text-slate-500 dark:text-slate-300",
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500",
                     )}
                     onClick={() => setViewMode("ranking")}
                   >
@@ -412,8 +412,8 @@ export function ResultReport({
                     className={clsx(
                       "rounded-full px-4 py-1",
                       viewMode === "tier"
-                        ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900/70 dark:text-white"
-                        : "text-slate-500 dark:text-slate-300",
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-500",
                     )}
                     onClick={() => setViewMode("tier")}
                   >
@@ -437,14 +437,14 @@ export function ResultReport({
               <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-sm uppercase tracking-[0.3em] text-slate-400">フォーカス</p>
-                  <h2 className="font-display text-3xl font-bold text-slate-900 dark:text-white">{selected.name}</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-300">
+                  <h2 className="font-display text-3xl font-bold text-slate-900">{selected.name}</h2>
+                  <p className="text-sm text-slate-600">
                     Tier {selected.tier} / {formatPercent(selected.total_score)}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <TierBadge tier={selected.tier} />
-                  <span className="rounded-full bg-gradient-to-r from-emerald-100 via-sky-100 to-blue-100 px-4 py-2 text-sm font-semibold text-emerald-800 dark:from-emerald-900/40 dark:to-blue-900/40 dark:text-emerald-100">
+                  <span className="rounded-full bg-gradient-to-r from-emerald-100 via-sky-100 to-blue-100 px-4 py-2 text-sm font-semibold text-emerald-800">
                     {nameMap.get(selected.id) ?? selected.name}
                   </span>
                 </div>
@@ -453,7 +453,7 @@ export function ResultReport({
               <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
                 <div className="space-y-4">
                   {selected.main_reason && (
-                    <div className="relative overflow-hidden rounded-[28px] border border-emerald-200/70 bg-gradient-to-r from-emerald-50 via-sky-50 to-white p-6 text-emerald-900 shadow-sm dark:border-emerald-500/40 dark:from-emerald-900/30 dark:via-sky-900/20 dark:to-slate-900/30 dark:text-emerald-100">
+                    <div className="relative overflow-hidden rounded-[28px] border border-emerald-200 bg-white p-6 text-emerald-900 shadow-sm">
                       <div className="flex items-center gap-3 text-base font-semibold">
                         <IconSparkles className="h-6 w-6 text-emerald-500" />
                         主な評価ポイント
@@ -462,46 +462,44 @@ export function ResultReport({
                     </div>
                   )}
 
-                  <div className="rounded-[28px] border border-slate-200 bg-white/90 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+                  <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex items-center gap-2">
                       <IconDocument className="h-5 w-5 text-slate-500" />
-                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">指標別内訳</h3>
+                      <h3 className="text-lg font-semibold text-slate-900">指標別内訳</h3>
                     </div>
                     <div className="mt-4 space-y-3">
                       {(selected.criteria_breakdown ?? []).map((entry) => {
                         const metric = metricMap.get(entry.key);
                         const ratio = clampProgress(entry.score);
                         return (
-                          <div key={entry.key} className="rounded-2xl border border-slate-100/80 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-900/40">
-                            <div className="flex items-center justify-between text-sm font-semibold text-slate-600 dark:text-slate-200">
+                          <div key={entry.key} className="rounded-2xl border border-slate-200 bg-white p-3">
+                            <div className="flex items-center justify-between text-sm font-semibold text-slate-700">
                               <span>{metric?.name ?? entry.key}</span>
                               <span>{formatPercent(entry.score)}</span>
                             </div>
-                            <div className="mt-2 h-2 rounded-full bg-slate-200/80 dark:bg-slate-800/80">
+                            <div className="mt-2 h-2 rounded-full bg-slate-200/80">
                               <div
                                 className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-500"
                                 style={{ width: `${ratio * 100}%` }}
                               />
                             </div>
-                            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{entry.reason}</p>
+                            <p className="mt-2 text-sm text-slate-700">{entry.reason}</p>
                           </div>
                         );
                       })}
-                      {(selected.criteria_breakdown?.length ?? 0) === 0 && (
-                        <p className="text-sm text-slate-500 dark:text-slate-300">内訳情報がありません。</p>
-                      )}
+                      {(selected.criteria_breakdown?.length ?? 0) === 0 && <p className="text-sm text-slate-600">内訳情報がありません。</p>}
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <div className="rounded-[28px] border border-amber-200/70 bg-amber-50/90 p-5 shadow-sm dark:border-amber-600/60 dark:bg-amber-900/40">
-                    <div className="flex items-center gap-3 text-amber-900 dark:text-amber-100">
+                  <div className="rounded-[28px] border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                    <div className="flex items-center gap-3 text-amber-900">
                       <IconShield className="h-6 w-6" />
                       <h3 className="text-lg font-semibold">リスク・留意点</h3>
                     </div>
                     {selected.risk_notes?.length ? (
-                      <ul className="mt-3 space-y-2 text-sm text-amber-900 dark:text-amber-100">
+                      <ul className="mt-3 space-y-2 text-sm text-amber-900">
                         {selected.risk_notes.map((note, index) => (
                           <li key={`${selected.id}-risk-${index}`} className="flex gap-2">
                             <span className="mt-1 h-2 w-2 flex-none rounded-full bg-amber-400" />
@@ -510,28 +508,28 @@ export function ResultReport({
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-3 text-sm text-amber-800 dark:text-amber-200">特筆すべきリスクは報告されていません。</p>
+                      <p className="mt-3 text-sm text-amber-800">特筆すべきリスクは報告されていません。</p>
                     )}
                   </div>
 
-                  <div className="rounded-[28px] border border-slate-200 bg-white/90 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+                  <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex items-center gap-3">
                       <IconLink className="h-5 w-5 text-slate-500" />
-                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">参考URL</h3>
+                      <h3 className="text-lg font-semibold text-slate-900">参考URL</h3>
                     </div>
                     {selected.sources?.length ? (
-                      <ul className="mt-3 space-y-3 text-sm">
+                      <ul className="mt-3 space-y-3 text-sm text-slate-800">
                         {selected.sources.map((source, index) => {
                           const domain = getReadableDomain(source.url);
                           return (
-                            <li key={`${selected.id}-source-${index}`} className="rounded-2xl border border-slate-100/70 bg-slate-50/80 p-4 dark:border-slate-700/70 dark:bg-slate-900/40">
-                              <div className="text-base font-semibold text-slate-900 dark:text-slate-100">{source.title ?? source.url}</div>
-                              {domain && <div className="text-xs text-slate-500 dark:text-slate-400">{domain}</div>}
+                            <li key={`${selected.id}-source-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4">
+                              <div className="text-base font-semibold text-slate-900">{source.title ?? source.url}</div>
+                              {domain && <div className="text-xs text-slate-600">{domain}</div>}
                               <a
                                 href={source.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 transition hover:opacity-80 dark:text-emerald-300"
+                                className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 transition hover:opacity-80"
                               >
                                 リンクを開く
                                 <span aria-hidden>↗</span>
@@ -541,7 +539,7 @@ export function ResultReport({
                         })}
                       </ul>
                     ) : (
-                      <p className="mt-3 text-sm text-slate-500 dark:text-slate-300">参考URLはありません。</p>
+                      <p className="mt-3 text-sm text-slate-600">参考URLはありません。</p>
                     )}
                   </div>
                 </div>
@@ -550,20 +548,20 @@ export function ResultReport({
           )}
 
           {summary ? (
-            <section className="space-y-5 rounded-[32px] border border-slate-200/80 bg-white/90 p-6 shadow-inner dark:border-slate-700 dark:bg-slate-900/70">
+            <section className="space-y-5 rounded-[32px] border border-slate-200 bg-white p-6 shadow-inner">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300">
+                  <div className="flex items-center gap-2 text-slate-500">
                     <IconDocument className="h-5 w-5" />
                     <p className="text-sm font-medium">{summary.title}</p>
                   </div>
-                  <h3 className="font-display text-2xl font-semibold text-slate-900 dark:text-white">{summary.subtitle}</h3>
+                  <h3 className="font-display text-2xl font-semibold text-slate-900">{summary.subtitle}</h3>
                 </div>
                 {hasHiddenSummary && (
                   <button
                     type="button"
                     onClick={() => setSummaryExpanded((prev) => !prev)}
-                    className="rounded-full border border-slate-200/70 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-100"
+                    className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                   >
                     {summaryExpanded ? "詳細を隠す" : "詳細を表示"}
                   </button>
@@ -573,13 +571,13 @@ export function ResultReport({
                 {visibleSummarySections.map((section) => (
                   <div
                     key={section.title}
-                    className="space-y-2 rounded-[24px] border border-slate-100/80 bg-slate-50/80 p-4 text-sm leading-relaxed text-slate-700 shadow-sm dark:border-slate-700/80 dark:bg-slate-900/50 dark:text-slate-200"
+                    className="space-y-2 rounded-[24px] border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-700 shadow-sm"
                   >
-                    <h4 className="text-base font-semibold text-slate-900 dark:text-white">{section.title}</h4>
+                    <h4 className="text-base font-semibold text-slate-900">{section.title}</h4>
                     <ul className="space-y-2">
                       {section.paragraphs.map((paragraph, index) => (
                         <li key={`${section.title}-${index}`} className="flex gap-2">
-                          <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-slate-300 dark:bg-slate-600" />
+                          <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-slate-300" />
                           <span>{paragraph}</span>
                         </li>
                       ))}
@@ -594,13 +592,13 @@ export function ResultReport({
             <button
               type="button"
               onClick={() => setJsonOpen((prev) => !prev)}
-              className="flex w-full items-center justify-between rounded-[28px] border border-slate-200/80 bg-white/80 px-5 py-3 text-left text-base font-semibold transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/70 dark:text-white"
+              className="flex w-full items-center justify-between rounded-[28px] border border-slate-200 bg-white px-5 py-3 text-left text-base font-semibold text-slate-900 transition hover:bg-slate-50"
             >
               <span>JSON表示</span>
               <span className="text-sm text-slate-500">{jsonOpen ? "閉じる" : "開く"}</span>
             </button>
             {jsonOpen && (
-              <pre className="max-h-[480px] overflow-auto rounded-[28px] border border-slate-900 bg-slate-950/90 p-4 text-xs text-slate-100 dark:border-slate-700">
+              <pre className="max-h-[480px] overflow-auto rounded-[28px] border border-slate-200 bg-slate-50 p-4 text-xs text-slate-800">
 {JSON.stringify(response, null, 2)}
               </pre>
             )}
@@ -818,14 +816,14 @@ function TierList({ tiers, selectedId, onSelect }: TierListProps) {
   const totalCompanies = tiers.reduce((sum, tier) => sum + (tier.items?.length ?? 0), 0);
   
   return (
-    <div className="space-y-4 rounded-[32px] border border-slate-200 bg-slate-50 p-6 shadow-[0_30px_70px_rgba(15,23,42,0.08)]">
+    <div className="space-y-4 rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">Tier表</p>
           <h3 className="font-display text-3xl font-semibold text-slate-900">行形式のTier表</h3>
           <p className="text-base text-slate-600">S から D まで固定の行にラベルと企業カードを並べる TierMaker 形式です。</p>
         </div>
-        <span className="text-xs text-slate-400">タップで詳細を確認</span>
+        <span className="text-xs text-slate-500">タップで詳細を確認</span>
       </div>
       <div className="space-y-3">
         {labels.map((tierLabel) => {
@@ -839,64 +837,63 @@ function TierList({ tiers, selectedId, onSelect }: TierListProps) {
           const colors = palette[tierLabel] ?? palette.default;
           const ratio = totalCompanies > 0 ? Math.round((count / totalCompanies) * 100) : 0;
           return (
-            <div
-              key={tierLabel}
-              className="grid grid-cols-[80px_1fr] items-stretch overflow-hidden rounded-3xl border border-slate-200 bg-white"
-            >
-              <div
-                className="flex flex-col items-center justify-center gap-1 text-white"
-                style={{ backgroundColor: colors.labelBg }}
-              >
-                <span className="text-lg font-bold">{tierLabel}</span>
-                <span className="text-[11px] uppercase tracking-[0.3em] text-white/90">Tier</span>
-              </div>
-              <div className="space-y-3 bg-slate-50 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <TierBadge tier={tierLabel} />
-                    <div>
-                      <p className="text-lg font-semibold text-slate-900">ランク {tierLabel}</p>
-                      <p className="text-sm text-slate-500">{count} 件 / 占有 {ratio}%</p>
+            <div key={tierLabel} className="overflow-hidden rounded-3xl border border-slate-200">
+              <div className="flex">
+                <div
+                  className="flex h-24 w-24 flex-none flex-col items-center justify-center gap-1 text-white"
+                  style={{ backgroundColor: colors.labelBg }}
+                >
+                  <span className="text-2xl font-black leading-none">{tierLabel}</span>
+                  <span className="text-[11px] uppercase tracking-[0.3em] text-white/90">Tier</span>
+                </div>
+                <div className="flex flex-1 flex-col gap-3 bg-gray-100 px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <TierBadge tier={tierLabel} />
+                      <div>
+                        <p className="text-lg font-semibold text-slate-900">ランク {tierLabel}</p>
+                        <p className="text-sm text-slate-600">{count} 件 / 占有 {ratio}%</p>
+                      </div>
                     </div>
-                  </div>
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${colors.count}`}>
-                    トップ {topItem?.name ?? "未登録"}
-                  </span>
-                </div>
-                <div className="flex min-h-[88px] flex-wrap content-start gap-2">
-                  {itemsInTier.length === 0 && (
-                    <span className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
-                      このTierの企業はまだありません。
+                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${colors.count}`}>
+                      トップ {topItem?.name ?? "未登録"}
                     </span>
-                  )}
-                  {itemsInTier.map((item) => {
-                    const isSelected = item.id === selectedId;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => onSelect?.(item.id)}
-                        className="flex items-center gap-3 rounded-2xl border px-3 py-2 text-left text-sm shadow-sm transition"
-                        style={
-                          isSelected
-                            ? { backgroundColor: colors.chipActiveBg, color: colors.chipActiveText, borderColor: colors.labelBg }
-                            : { backgroundColor: colors.chipBg, color: colors.chipText, borderColor: colors.labelBg }
-                        }
-                      >
-                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-bold">
-                          {item.name?.[0] ?? "?"}
-                        </span>
-                        <div>
-                          <p className="text-sm font-semibold">{item.name}</p>
-                          <p className="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">{formatPercent(item.score)}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">平均スコア {formatPercent(avgScore)}</span>
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1">トップ指標 {topItem?.top_criteria?.[0] ?? "-"}</span>
+                  </div>
+                  <div className="flex min-h-[104px] flex-wrap content-start gap-2">
+                    {itemsInTier.length === 0 && (
+                      <span className="rounded-2xl border border-dashed border-slate-300 bg-white px-3 py-2 text-xs text-slate-600">
+                        このTierの企業はまだありません。
+                      </span>
+                    )}
+                    {itemsInTier.map((item) => {
+                      const isSelected = item.id === selectedId;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => onSelect?.(item.id)}
+                          className="flex items-center gap-3 rounded-2xl border px-3 py-2 text-left text-sm shadow-sm transition"
+                          style={
+                            isSelected
+                              ? { backgroundColor: colors.chipActiveBg, color: colors.chipActiveText, borderColor: colors.labelBg }
+                              : { backgroundColor: colors.chipBg, color: colors.chipText, borderColor: colors.labelBg }
+                          }
+                        >
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-bold">
+                            {item.name?.[0] ?? "?"}
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold">{item.name}</p>
+                            <p className="text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">{formatPercent(item.score)}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-slate-600">
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1">平均スコア {formatPercent(avgScore)}</span>
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1">トップ指標 {topItem?.top_criteria?.[0] ?? "-"}</span>
+                  </div>
                 </div>
               </div>
             </div>
