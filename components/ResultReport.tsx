@@ -747,54 +747,90 @@ function RankingTable({ scores, selectedId, onSelect }: RankingTableProps) {
   );
 }
 type TierListProps = {
-  tiers: TierEntry[];
-  tierOrder: string[];
-  selectedId?: string | null;
-  onSelect?: (id: string) => void;
+tiers: TierEntry[];
+tierOrder: string[];
+selectedId?: string | null;
+onSelect?: (id: string) => void;
 };
 
 function TierList({ tiers, tierOrder, selectedId, onSelect }: TierListProps) {
-  const palette: Record<string, { labelBg: string; chip: string; chipActive: string; count: string }> = {
+  const palette: Record<
+    string,
+    {
+      labelBg: string;
+      chipBg: string;
+      chipText: string;
+      chipActiveBg: string;
+      chipActiveText: string;
+      count: string;
+    }
+  > = {
     S: {
-      labelBg: "bg-red-500",
-      chip: "border border-red-100 bg-red-50 text-red-800",
-      chipActive: "border-red-300 bg-red-100 text-red-900",
-      count: "border border-red-100 bg-red-50 text-red-700",
+      labelBg: "#FF7F7F",
+      chipBg: "#FFF2F2",
+      chipText: "#991b1b",
+      chipActiveBg: "#FFE4E4",
+      chipActiveText: "#7f1d1d",
+      count: "border-[#ffc7c7] bg-[#fff2f2] text-[#7f1d1d]",
     },
     A: {
-      labelBg: "bg-orange-500",
-      chip: "border border-orange-100 bg-orange-50 text-orange-800",
-      chipActive: "border-orange-300 bg-orange-100 text-orange-900",
-      count: "border border-orange-100 bg-orange-50 text-orange-700",
+      labelBg: "#FFBF7F",
+      chipBg: "#FFF4EB",
+      chipText: "#9a3412",
+      chipActiveBg: "#FFE8D5",
+      chipActiveText: "#7c2d12",
+      count: "border-[#ffdcb3] bg-[#fff4eb] text-[#7c2d12]",
     },
     B: {
-      labelBg: "bg-emerald-500",
-      chip: "border border-emerald-100 bg-emerald-50 text-emerald-800",
-      chipActive: "border-emerald-300 bg-emerald-100 text-emerald-900",
-      count: "border border-emerald-100 bg-emerald-50 text-emerald-700",
+      labelBg: "#FFDF7F",
+      chipBg: "#FFFAEB",
+      chipText: "#854d0e",
+      chipActiveBg: "#FFF4CF",
+      chipActiveText: "#713f12",
+      count: "border-[#ffe7aa] bg-[#fffaeb] text-[#713f12]",
+    },
+    C: {
+      labelBg: "#FFFF7F",
+      chipBg: "#FEFCE8",
+      chipText: "#854d0e",
+      chipActiveBg: "#FEF9C3",
+      chipActiveText: "#713f12",
+      count: "border-[#fff7a8] bg-[#fefce8] text-[#713f12]",
+    },
+    D: {
+      labelBg: "#BFFFFF",
+      chipBg: "#F0FDFF",
+      chipText: "#0e7490",
+      chipActiveBg: "#D5F7FF",
+      chipActiveText: "#0f172a",
+      count: "border-[#b9f2ff] bg-[#f0fdff] text-[#0e7490]",
     },
     default: {
-      labelBg: "bg-slate-500",
-      chip: "border border-slate-200 bg-slate-50 text-slate-800",
-      chipActive: "border-slate-300 bg-slate-100 text-slate-900",
-      count: "border border-slate-200 bg-slate-50 text-slate-700",
+      labelBg: "#CBD5E1",
+      chipBg: "#F8FAFC",
+      chipText: "#0f172a",
+      chipActiveBg: "#E2E8F0",
+      chipActiveText: "#0f172a",
+      count: "border-slate-200 bg-slate-50 text-slate-700",
     },
   };
-
+  
+  const fixedTierOrder = ["S", "A", "B", "C", "D"];
+  const labels = tierOrder.length ? tierOrder : fixedTierOrder;
   const totalCompanies = tiers.reduce((sum, tier) => sum + (tier.items?.length ?? 0), 0);
-
+  
   return (
-    <div className="space-y-4 rounded-[32px] border border-slate-200 bg-white p-6 shadow-[0_30px_70px_rgba(15,23,42,0.08)]">
+    <div className="space-y-4 rounded-[32px] border border-slate-200 bg-slate-50 p-6 shadow-[0_30px_70px_rgba(15,23,42,0.08)]">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">Tier表</p>
           <h3 className="font-display text-3xl font-semibold text-slate-900">行形式のTier表</h3>
-          <p className="text-base text-slate-600">左にランクラベル、その横に企業が並ぶ本物の表形式にしました。</p>
+          <p className="text-base text-slate-600">S から D まで固定の行にラベルと企業カードを並べる TierMaker 形式です。</p>
         </div>
         <span className="text-xs text-slate-400">タップで詳細を確認</span>
       </div>
       <div className="space-y-3">
-        {tierOrder.map((tierLabel) => {
+        {labels.map((tierLabel) => {
           const tierData = tiers.find((entry) => entry.label === tierLabel);
           const itemsInTier = tierData?.items ?? [];
           const count = itemsInTier.length;
@@ -807,13 +843,16 @@ function TierList({ tiers, tierOrder, selectedId, onSelect }: TierListProps) {
           return (
             <div
               key={tierLabel}
-              className="grid grid-cols-[72px_1fr] items-stretch overflow-hidden rounded-3xl border border-slate-200 bg-slate-50"
+              className="grid grid-cols-[80px_1fr] items-stretch overflow-hidden rounded-3xl border border-slate-200 bg-white"
             >
-              <div className={`flex flex-col items-center justify-center gap-1 ${colors.labelBg} text-white`}>
+              <div
+                className="flex flex-col items-center justify-center gap-1 text-white"
+                style={{ backgroundColor: colors.labelBg }}
+              >
                 <span className="text-lg font-bold">{tierLabel}</span>
                 <span className="text-[11px] uppercase tracking-[0.3em] text-white/90">Tier</span>
               </div>
-              <div className="space-y-3 bg-white px-4 py-3">
+              <div className="space-y-3 bg-slate-50 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <TierBadge tier={tierLabel} />
@@ -826,9 +865,9 @@ function TierList({ tiers, tierOrder, selectedId, onSelect }: TierListProps) {
                     トップ {topItem?.name ?? "未登録"}
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex min-h-[88px] flex-wrap content-start gap-2">
                   {itemsInTier.length === 0 && (
-                    <span className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                    <span className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
                       このTierの企業はまだありません。
                     </span>
                   )}
@@ -839,10 +878,12 @@ function TierList({ tiers, tierOrder, selectedId, onSelect }: TierListProps) {
                         key={item.id}
                         type="button"
                         onClick={() => onSelect?.(item.id)}
-                        className={clsx(
-                          "flex items-center gap-3 rounded-2xl px-3 py-2 text-left text-sm transition",
-                          isSelected ? colors.chipActive : colors.chip,
-                        )}
+                        className="flex items-center gap-3 rounded-2xl border px-3 py-2 text-left text-sm shadow-sm transition"
+                        style={
+                          isSelected
+                            ? { backgroundColor: colors.chipActiveBg, color: colors.chipActiveText, borderColor: colors.labelBg }
+                            : { backgroundColor: colors.chipBg, color: colors.chipText, borderColor: colors.labelBg }
+                        }
                       >
                         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-bold">
                           {item.name?.[0] ?? "?"}
@@ -867,4 +908,5 @@ function TierList({ tiers, tierOrder, selectedId, onSelect }: TierListProps) {
     </div>
   );
 }
+
 export default ResultReport;
