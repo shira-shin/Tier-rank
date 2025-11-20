@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import NavBar from "@/components/NavBar";
 import { ScoreForm } from "@/components/ScoreForm";
@@ -30,6 +31,10 @@ export default async function Page() {
   const session = await getServerSession(authOptions);
   const sevenDaysAgo = new Date(Date.now() - 1000 * 60 * 60 * 24 * 7);
 
+  type RankingWithCounts = Prisma.RankingGetPayload<{
+    include: { _count: { select: { likes: true; bookmarks: true } } };
+  }>;
+
   const [publicCount, recentPublicCount, communityRankings] = await Promise.all([
     prisma.ranking.count({ where: { visibility: "PUBLIC" } }),
     prisma.ranking.count({ where: { visibility: "PUBLIC", createdAt: { gte: sevenDaysAgo } } }),
@@ -44,7 +49,7 @@ export default async function Page() {
     }),
   ]);
 
-  let myRankings: Awaited<ReturnType<typeof prisma.ranking.findMany>> = [];
+  let myRankings: RankingWithCounts[] = [];
   let myRankingCount = 0;
   if (session?.user?.id) {
     [myRankings, myRankingCount] = await Promise.all([
