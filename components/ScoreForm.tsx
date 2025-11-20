@@ -742,7 +742,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                 value={publishTitle}
                 onChange={(event) => setPublishTitle(event.target.value)}
                 placeholder="例：2024年 上半期ノートPCランキング"
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
               />
             </label>
             <label className="flex flex-col gap-2 text-sm">
@@ -751,7 +751,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                 value={publishCategory}
                 onChange={(event) => setPublishCategory(event.target.value)}
                 placeholder="例：ガジェット"
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
               />
             </label>
             <label className="flex flex-col gap-2 text-sm">
@@ -760,7 +760,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                 value={publishTags}
                 onChange={(event) => setPublishTags(event.target.value)}
                 placeholder="カンマ区切りで入力 (例：ノートPC, 2024)"
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
               />
             </label>
             <label className="flex flex-col gap-2 text-sm">
@@ -770,7 +770,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                 onChange={(event) => setPublishSummary(event.target.value)}
                 rows={4}
                 placeholder="ランキングの背景やポイントを短く紹介しましょう。"
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
               />
               <span className="text-xs text-text-muted">Markdown記法に対応し、安全なHTMLに自動変換されます。</span>
             </label>
@@ -779,7 +779,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
               <select
                 value={publishVisibility}
                 onChange={(event) => setPublishVisibility(event.target.value as PublishVisibility)}
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-slate-700 dark:bg-slate-900"
               >
                 <option value="PUBLIC">公開（誰でも閲覧可能）</option>
                 <option value="UNLISTED">限定公開（リンクを知っている人のみ）</option>
@@ -1039,7 +1039,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                       <span className="font-medium">候補ID</span>
                                       <span className="text-xs text-sky-800/80 dark:text-sky-100/70">AIが識別する短いID（例：A）</span>
                                       <input
-                                        className="rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
+                                        className="w-full rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
                                         value={item.id}
                                         onChange={(event) => updateItems(idx, { id: event.target.value })}
                                         placeholder="例: A"
@@ -1049,7 +1049,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                       <span className="font-medium">表示名</span>
                                       <span className="text-xs text-sky-800/80 dark:text-sky-100/70">一般ユーザー向けの名前（例：プランA）</span>
                                       <input
-                                        className="rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
+                                        className="w-full rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
                                         value={item.name ?? ""}
                                         onChange={(event) => updateItems(idx, { name: event.target.value })}
                                         placeholder="例: プランA"
@@ -1060,7 +1060,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                     <span className="font-medium">補足メモ（任意）</span>
                                     <span className="text-xs text-sky-800/80 dark:text-sky-100/70">比較時の参考情報をメモできます</span>
                                     <textarea
-                                      className="min-h-[72px] rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
+                                      className="min-h-[72px] w-full rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
                                       value={metaNote}
                                       onChange={(event) => updateItems(idx, { metaNote: event.target.value })}
                                       placeholder="例: 月額980円の入門プラン"
@@ -1187,7 +1187,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                       <span className="font-medium">指標名</span>
                                       <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">例：コスパ / 信頼性 / デザイン</span>
                                       <input
-                                        className="rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                        className="w-full rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                         value={metric.name}
                                         onChange={(event) => updateMetric(idx, { name: event.target.value })}
                                         placeholder="例: コスパ"
@@ -1202,7 +1202,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                       </span>
                                       <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">数値（1〜10など）/ 選択式 / Yes/No。迷ったら数値でOKです。</span>
                                       <select
-                                        className="rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                        className="w-full rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                         value={type}
                                         onChange={(event) => updateMetric(idx, { type: event.target.value as MetricInput["type"] })}
                                       >
@@ -1219,8 +1219,8 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                       <label className="flex flex-col gap-2">
                                         <span className="font-medium">評価方向</span>
                                         <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">高いほうが良いか、低いほうが良いかを選びます</span>
-                                        <select
-                                          className="rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                      <select
+                                          className="w-full rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                           value={metric.direction ?? "MAX"}
                                           onChange={(event) => updateMetric(idx, { direction: event.target.value as MetricInput["direction"] })}
                                         >
@@ -1231,8 +1231,8 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                       <label className="flex flex-col gap-2">
                                         <span className="font-medium">正規化</span>
                                         <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">分からなければ「なし」のままで大丈夫です</span>
-                                        <select
-                                          className="rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                      <select
+                                          className="w-full rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                           value={metric.normalize ?? "none"}
                                           onChange={(event) => updateMetric(idx, { normalize: event.target.value as MetricInput["normalize"] })}
                                         >
@@ -1251,7 +1251,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                       <input
                                         type="number"
                                         step="0.1"
-                                        className="rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                        className="w-full rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                         value={metric.weight ?? 1}
                                         onChange={(event) => updateMetric(idx, { weight: Number(event.target.value) })}
                                         placeholder="例: 3"
@@ -1261,7 +1261,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                       <span className="font-medium">閾値 / 備考</span>
                                       <span className="text-xs text-emerald-800/80 dark:text-emerald-100/70">除外条件や注記（例：信頼性は3未満なら除外）</span>
                                       <input
-                                        className="rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                        className="w-full rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
                                         value={metric.target ?? ""}
                                         onChange={(event) =>
                                           updateMetric(idx, {
@@ -1283,7 +1283,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                           </span>
                                         </span>
                                         <input
-                                      className="rounded-2xl border border-emerald-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-emerald-700 dark:bg-emerald-950"
+                                      className="w-full rounded-2xl border border-emerald-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-emerald-700 dark:bg-emerald-950"
                                           value={metric.formula ?? ""}
                                           onChange={(event) => updateMetric(idx, { formula: event.target.value })}
                                           placeholder="0.6*総合 + 0.4*評判"
@@ -1524,50 +1524,19 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
         )}
       >
         <div
-          className={clsx(
-            "pointer-events-auto flex flex-col gap-4 rounded-3xl border p-6 shadow-2xl backdrop-blur",
-            isHomeContext
-              ? "border-white/20 bg-slate-950/80 text-white"
-              : "border-slate-200 bg-white/95 text-slate-900 dark:border-slate-700 dark:bg-slate-900/90 dark:text-white",
-          )}
+          className="pointer-events-auto flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl backdrop-blur"
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className={clsx("text-base font-semibold", isHomeContext ? "text-white" : undefined)}>🚀 AI評価を実行</div>
-              <div
-                className={clsx(
-                  "text-sm",
-                  isHomeContext ? "text-white/70" : "text-text-muted",
-                )}
-              >
-                候補 {items.length} 件 / 指標 {metrics.length} 件
-              </div>
+              <div className="text-base font-semibold text-slate-900">🚀 AI評価を実行</div>
+              <div className="text-sm text-text-muted">候補 {items.length} 件 / 指標 {metrics.length} 件</div>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-3">
-              <div
-                className={clsx(
-                  "flex items-center gap-2 text-xs font-semibold uppercase tracking-wide",
-                  isHomeContext ? "text-white/80" : "text-slate-600 dark:text-slate-300",
-                )}
-              >
-                <span
-                  className={clsx(
-                    "rounded-full px-3 py-1 text-xs",
-                    isHomeContext
-                      ? "bg-white/10 text-white"
-                      : "bg-slate-200 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100",
-                  )}
-                >
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <span className="rounded-full bg-slate-200 px-3 py-1 text-slate-700">
                   AI {Math.max(0, effectiveScoreRemaining)} / {maxScorePerDay}
                 </span>
-                <span
-                  className={clsx(
-                    "rounded-full px-3 py-1 text-xs",
-                    isHomeContext
-                      ? "bg-white/10 text-white"
-                      : "bg-slate-200 text-slate-700 dark:bg-slate-700/60 dark:text-slate-100",
-                  )}
-                >
+                <span className="rounded-full bg-slate-200 px-3 py-1 text-slate-700">
                   Web {Math.max(0, effectiveWebRemaining)} / {maxWebPerDay}
                 </span>
               </div>
@@ -1592,24 +1561,23 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
             </div>
           </div>
           <div
-            className={clsx(
+              className={clsx(
               "flex flex-wrap items-center gap-3 text-sm",
-              isHomeContext ? "text-white/80" : undefined,
             )}
           >
             {projectSlugMissing && !loading && !error ? (
-              <span className={isHomeContext ? "text-rose-300" : "text-rose-500"}>
+              <span className="text-rose-500">
                 AIプロジェクトが設定されていません。管理者にお問い合わせください。
               </span>
             ) : loading ? (
-              <span className={clsx("flex items-center gap-2", isHomeContext ? "text-sky-200" : "text-sky-600")}>
+              <span className="flex items-center gap-2 text-sky-600">
                 <span className="h-2 w-2 animate-ping rounded-full bg-sky-500" />
                 処理中… AIの結果を待機しています。
               </span>
             ) : error ? (
-              <span className={isHomeContext ? "text-rose-300" : "text-rose-500"}>{error}</span>
+              <span className="text-rose-500">{error}</span>
             ) : (
-              <span className={isHomeContext ? "text-white/70" : "text-text-muted"}>
+              <span className="text-text-muted">
                 左側のステップを埋めたら「AIに評価を依頼する」を押してください。
               </span>
             )}
