@@ -7,7 +7,7 @@
   --surface-bg: #ffffff;
   --surface-strong-bg: #f8f9fa;
   --text-muted: #475569;
-  background-color: #f8f9fa;
+  background-color: #ffffff;
 }
 
 .dark {
@@ -15,7 +15,7 @@
   --surface-bg: #ffffff;
   --surface-strong-bg: #f8f9fa;
   --text-muted: #475569;
-  background-color: #f8f9fa;
+  background-color: #ffffff;
 }
 
 html,
@@ -25,7 +25,7 @@ body {
 
 body {
   @apply text-slate-900;
-  background-color: #f8f9fa;
+  background-color: #ffffff;
 }
 
 .font-display {

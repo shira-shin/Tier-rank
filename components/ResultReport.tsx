@@ -245,7 +245,6 @@ export function ResultReport({
     [sortedScores, selectedId],
   );
 
-  const tierOrder = useMemo(() => response.tiers.map((tier) => tier.label), [response.tiers]);
 
   const summaryLine = useMemo(() => {
     const top = sortedScores[0];
@@ -429,7 +428,7 @@ export function ResultReport({
             )}
 
             {viewMode === "tier" && (
-              <TierList tiers={response.tiers} tierOrder={tierOrder} selectedId={selected?.id} onSelect={(id) => setSelectedId(id)} />
+              <TierList tiers={response.tiers} selectedId={selected?.id} onSelect={(id) => setSelectedId(id)} />
             )}
           </section>
 
@@ -747,13 +746,12 @@ function RankingTable({ scores, selectedId, onSelect }: RankingTableProps) {
   );
 }
 type TierListProps = {
-tiers: TierEntry[];
-tierOrder: string[];
-selectedId?: string | null;
-onSelect?: (id: string) => void;
+  tiers: TierEntry[];
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
 };
 
-function TierList({ tiers, tierOrder, selectedId, onSelect }: TierListProps) {
+function TierList({ tiers, selectedId, onSelect }: TierListProps) {
   const palette: Record<
     string,
     {
@@ -816,7 +814,7 @@ function TierList({ tiers, tierOrder, selectedId, onSelect }: TierListProps) {
   };
   
   const fixedTierOrder = ["S", "A", "B", "C", "D"];
-  const labels = tierOrder.length ? tierOrder : fixedTierOrder;
+  const labels = fixedTierOrder;
   const totalCompanies = tiers.reduce((sum, tier) => sum + (tier.items?.length ?? 0), 0);
   
   return (
