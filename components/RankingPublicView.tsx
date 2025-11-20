@@ -182,7 +182,7 @@ export default function RankingPublicView({ data }: RankingPublicViewProps) {
   }
 
   const actionSlot = (
-    <div className="space-y-5 text-slate-600 dark:text-slate-200">
+    <div className="space-y-5 text-slate-700">
       <div className="grid grid-cols-3 gap-3 text-center text-sm">
         {[
           { label: "Views", value: data.counts.views.toLocaleString(), accent: "text-sky-600" },
@@ -191,9 +191,9 @@ export default function RankingPublicView({ data }: RankingPublicViewProps) {
         ].map((stat) => (
           <div
             key={stat.label}
-            className="rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-3 shadow-sm dark:border-white/10 dark:bg-slate-900/50"
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
           >
-            <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">{stat.label}</p>
+            <p className="text-xs uppercase tracking-wider text-slate-500">{stat.label}</p>
             <p className={clsx("font-display text-2xl font-bold", stat.accent)}>{stat.value}</p>
           </div>
         ))}
@@ -204,7 +204,7 @@ export default function RankingPublicView({ data }: RankingPublicViewProps) {
           <button
             type="button"
             onClick={() => window.open(shareUrls.x, "_blank")}
-            className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-gradient-to-r hover:from-[#e0f2fe] hover:to-[#ede9fe] dark:border-white/10 dark:bg-slate-900/60 dark:text-white"
+            className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-gradient-to-r hover:from-[#e0f2fe] hover:to-[#ede9fe]"
           >
             🐦 Xで共有
             <span aria-hidden>↗</span>
@@ -212,7 +212,7 @@ export default function RankingPublicView({ data }: RankingPublicViewProps) {
           <button
             type="button"
             onClick={() => window.open(shareUrls.line, "_blank")}
-            className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-gradient-to-r hover:from-[#bbf7d0] hover:to-[#99f6e4] dark:border-white/10 dark:bg-slate-900/60 dark:text-white"
+            className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-gradient-to-r hover:from-[#bbf7d0] hover:to-[#99f6e4]"
           >
             💬 LINEで共有
             <span aria-hidden>↗</span>
@@ -220,7 +220,7 @@ export default function RankingPublicView({ data }: RankingPublicViewProps) {
           <button
             type="button"
             onClick={() => copyShare(shareUrls.copy)}
-            className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-gradient-to-r hover:from-[#ddd6fe] hover:to-[#f5d0fe] dark:border-white/10 dark:bg-slate-900/60 dark:text-white"
+            className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-gradient-to-r hover:from-[#ddd6fe] hover:to-[#f5d0fe]"
           >
             🔗 リンクをコピー
             <span aria-hidden>⧉</span>
@@ -229,18 +229,18 @@ export default function RankingPublicView({ data }: RankingPublicViewProps) {
         {shareCopied && <div className="text-xs font-semibold text-emerald-500">リンクをコピーしました</div>}
       </div>
       <div className="space-y-2 text-xs">
-        <div className="text-sm font-semibold text-slate-500 dark:text-slate-200">埋め込みコード</div>
+        <div className="text-sm font-semibold text-slate-600">埋め込みコード</div>
         <textarea
           value={embedCode}
           readOnly
           rows={4}
-          className="w-full rounded-2xl border border-slate-200/80 bg-white/70 p-3 text-[11px] text-slate-600 shadow-inner focus:outline-none dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-200"
+          className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-[11px] text-slate-700 shadow-inner focus:outline-none"
           onFocus={(event) => event.currentTarget.select()}
         />
         <button
           type="button"
           onClick={() => copyEmbed(embedCode)}
-          className="w-full rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-gradient-to-r hover:from-[#fee2e2] hover:to-[#fef9c3] dark:border-white/10 dark:bg-slate-900/60 dark:text-white"
+          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-gradient-to-r hover:from-[#fee2e2] hover:to-[#fef9c3]"
         >
           {embedCopied ? "コピーしました" : "埋め込みコードをコピー"}
         </button>
@@ -249,36 +249,36 @@ export default function RankingPublicView({ data }: RankingPublicViewProps) {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black pb-16 text-slate-50">
+    <div className="min-h-screen bg-white pb-16 text-slate-900">
       <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 pt-12">
-        <header className="rounded-[40px] border border-white/10 bg-slate-900/60 p-8 shadow-[0_0_60px_rgba(15,118,110,0.35)] backdrop-blur-2xl">
+        <header className="rounded-[40px] border border-slate-200 bg-white p-8 shadow-[0_25px_80px_rgba(15,23,42,0.08)]">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.3em] text-slate-300">
-                <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-white/90">
+              <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700">
                   {data.category ?? "カテゴリー未設定"}
                 </span>
                 <span>{publishedDate}</span>
               </div>
-              <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white md:text-4xl">{data.title}</h1>
+              <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">{data.title}</h1>
               {data.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2 text-sm text-slate-300">
+                <div className="mt-2 flex flex-wrap gap-2 text-sm text-slate-600">
                   {data.tags.map((tag) => (
-                    <span key={tag} className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-white/80">
+                    <span key={tag} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700">
                       #{tag}
                     </span>
                   ))}
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-4 rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white shadow-lg backdrop-blur">
+            <div className="flex items-center gap-4 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm">
               <button
                 onClick={() => toggleReaction("like")}
                 className={clsx(
                   "flex items-center gap-2 rounded-full px-3 py-1 transition",
                   liked
                     ? "bg-gradient-to-r from-rose-500 to-fuchsia-500 text-white shadow"
-                    : "border border-white/10 bg-white/5 text-rose-200 hover:bg-white/10",
+                    : "border border-slate-200 bg-white text-rose-500 hover:bg-rose-50",
                 )}
               >
                 ♥ {likeCount}
@@ -289,7 +289,7 @@ export default function RankingPublicView({ data }: RankingPublicViewProps) {
                   "flex items-center gap-2 rounded-full px-3 py-1 transition",
                   bookmarked
                     ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow"
-                    : "border border-white/10 bg-white/5 text-emerald-200 hover:bg-white/10",
+                    : "border border-slate-200 bg-white text-emerald-600 hover:bg-emerald-50",
                 )}
               >
                 ♡ {bookmarkCount}
@@ -297,34 +297,34 @@ export default function RankingPublicView({ data }: RankingPublicViewProps) {
             </div>
           </div>
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,2.4fr)_minmax(0,0.9fr)]">
-            <div className="prose max-w-none text-slate-200 prose-headings:text-white prose-p:leading-relaxed">
+            <div className="prose max-w-none text-slate-700 prose-headings:text-slate-900 prose-p:leading-relaxed">
               {data.summary ? (
                 <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{data.summary}</ReactMarkdown>
               ) : (
-                <p className="text-sm text-slate-400">説明はまだ追加されていません。</p>
+                <p className="text-sm text-slate-500">説明はまだ追加されていません。</p>
               )}
             </div>
-            <aside className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-slate-200 shadow-xl">
+            <aside className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700 shadow-sm">
               <div className="flex items-center gap-4">
                 <img
                   src={data.author.profile?.avatarUrl ?? data.author.image ?? "https://www.gravatar.com/avatar?d=mp"}
                   alt=""
-                  className="h-14 w-14 rounded-full border border-white/20 shadow-lg"
+                  className="h-14 w-14 rounded-full border border-slate-200 shadow-sm"
                 />
                 <div>
-                  <p className="text-base font-semibold text-white">{authorDisplay}</p>
+                  <p className="text-base font-semibold text-slate-900">{authorDisplay}</p>
                   {authorHandle ? (
-                    <Link href={`/u/${authorHandle}`} className="text-xs text-cyan-300 underline">
+                    <Link href={`/u/${authorHandle}`} className="text-xs text-emerald-600 underline">
                       @{authorHandle}
                     </Link>
                   ) : (
-                    <span className="text-xs text-slate-400">プロフィール設定未完了</span>
+                    <span className="text-xs text-slate-500">プロフィール設定未完了</span>
                   )}
                 </div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-black/30 p-3 text-xs text-slate-300">
-                <p className="font-semibold uppercase tracking-[0.3em] text-slate-400">Ranking ID</p>
-                <p className="truncate text-lg font-semibold text-white">{data.slug}</p>
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 text-xs text-slate-700">
+                <p className="font-semibold uppercase tracking-[0.3em] text-slate-500">Ranking ID</p>
+                <p className="truncate text-lg font-semibold text-slate-900">{data.slug}</p>
               </div>
             </aside>
           </div>
@@ -349,7 +349,7 @@ export default function RankingPublicView({ data }: RankingPublicViewProps) {
             actionSlot={actionSlot}
           />
         ) : (
-          <div className="rounded-[32px] border border-white/10 bg-white/5 p-10 text-center text-slate-300">
+          <div className="rounded-[32px] border border-slate-200 bg-white p-10 text-center text-slate-600">
             <p>公開された評価結果が見つかりませんでした。</p>
           </div>
         )}

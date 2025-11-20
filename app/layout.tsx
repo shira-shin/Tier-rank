@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja" suppressHydrationWarning>
-      <body className={`${notoSans.className} ${displayGrotesk.variable} min-h-screen text-base`}>
+      <body className={`${notoSans.className} ${displayGrotesk.variable} min-h-screen bg-white text-base`}>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
