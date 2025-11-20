@@ -9,6 +9,7 @@ export type ItemInput = {
 };
 
 export type UIMetric = {
+  id?: string;
   name: string;
   type: MetricType;
   direction?: "MAX" | "MIN";

@@ -134,6 +134,17 @@ function createHistoryId() {
   return `history-${Date.now()}`;
 }
 
+function createMetricId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `metric-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function addIdsToMetrics(metrics: MetricInput[]) {
+  return metrics.map((metric) => ({ ...metric, id: metric.id ?? createMetricId() }));
+}
+
 function reorderList<T>(list: T[], startIndex: number, endIndex: number): T[] {
   const result = Array.from(list);
   const [removed] = result.splice(startIndex, 1);
@@ -200,7 +211,7 @@ function isScoreResponseEntry(
 export function ScoreForm({ initialProjectSlug, displayContext = "default" }: ScoreFormProps = {}) {
   const { data: session } = useSession();
   const [items, setItems] = useState<ItemInput[]>(() => DEFAULT_ITEMS.map((item) => ({ ...item })));
-  const [metrics, setMetrics] = useState<MetricInput[]>(() => SIMPLE_METRICS.map((metric) => ({ ...metric })));
+  const [metrics, setMetrics] = useState<MetricInput[]>(() => addIdsToMetrics(SIMPLE_METRICS));
   const [useWeb, setUseWeb] = useState(false);
   const [strictness, setStrictness] = useState<EvaluationStrictness>("balanced");
   const [searchDepth, setSearchDepth] = useState<SearchDepth>("normal");
@@ -309,7 +320,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
   function addMetric() {
     setMetrics((prev) => [
       ...prev,
-      { name: `指標${prev.length + 1}`, type: "numeric", direction: "MAX", weight: 1, normalize: "none" },
+      { id: createMetricId(), name: `指標${prev.length + 1}`, type: "numeric", direction: "MAX", weight: 1, normalize: "none" },
     ]);
   }
 
@@ -324,16 +335,16 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
   function applyPreset(kind: "reset" | "naming" | "company") {
     if (kind === "reset") {
       setItems(DEFAULT_ITEMS.map((item) => ({ ...item })));
-      setMetrics(SIMPLE_METRICS.map((metric) => ({ ...metric })));
+      setMetrics(addIdsToMetrics(SIMPLE_METRICS));
       return;
     }
     if (kind === "naming") {
       setItems(NAMING_PRESET.items.map((item) => ({ ...item })));
-      setMetrics(NAMING_PRESET.metrics.map((metric) => ({ ...metric })));
+      setMetrics(addIdsToMetrics(NAMING_PRESET.metrics));
       return;
     }
     setItems(COMPANY_PRESET.items.map((item) => ({ ...item })));
-    setMetrics(COMPANY_PRESET.metrics.map((metric) => ({ ...metric })));
+    setMetrics(addIdsToMetrics(COMPANY_PRESET.metrics));
   }
 
   function validate():
@@ -398,6 +409,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
         }
       }
       cleanedMetrics.push({
+        id: metric.id ?? createMetricId(),
         ...metric,
         name: baseName,
         weight,
@@ -408,7 +420,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
 
     setError(undefined);
     setItems(cleanedItems.map((item) => ({ ...item })));
-    setMetrics(cleanedMetrics.map((metric) => ({ ...metric })));
+    setMetrics(addIdsToMetrics(cleanedMetrics));
     const candidates = cleanedItems.map((item) => ({
       id: item.id,
       name: item.name,
@@ -646,8 +658,8 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
     const nextItems: ItemInput[] = (entry.itemsSnapshot?.length ? entry.itemsSnapshot : fallbackItems).map((item: ItemInput) => ({
       ...item,
     }));
-    const nextMetrics: MetricInput[] = (entry.metricsSnapshot?.length ? entry.metricsSnapshot : fallbackMetrics).map(
-      (metric: MetricInput) => ({ ...metric }),
+    const nextMetrics: MetricInput[] = addIdsToMetrics(
+      (entry.metricsSnapshot?.length ? entry.metricsSnapshot : fallbackMetrics).map((metric: MetricInput) => ({ ...metric })),
     );
     setUseWeb(options.useWebSearch === true);
     setStrictness(options.strictness ?? "balanced");
@@ -1136,8 +1148,9 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                           previewValue = undefined;
                         }
                       }
+                      const metricId = metric.id ?? `metric-${idx}`;
                       return (
-                        <Draggable key={`metric-${idx}-${metric.name}`} draggableId={`metric-${idx}-${metric.name}`} index={idx}>
+                        <Draggable key={metricId} draggableId={metricId} index={idx}>
                           {(dragProvided, snapshot) => (
                             <div
                               ref={dragProvided.innerRef}
