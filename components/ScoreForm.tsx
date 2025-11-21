@@ -250,10 +250,11 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
   const maxWebPerDay = isLoggedIn ? 10 : 2;
   const effectiveScoreRemaining = limitState.scoreRemaining ?? maxScorePerDay;
   const effectiveWebRemaining = limitState.webRemaining ?? maxWebPerDay;
-  const disableRunButton =
-    loading ||
-    (limitState.scoreRemaining !== undefined && limitState.scoreRemaining <= 0) ||
-    (useWeb && limitState.webRemaining !== undefined && limitState.webRemaining <= 0);
+  const scoreUsed = Math.max(0, maxScorePerDay - Math.max(0, effectiveScoreRemaining));
+  const webUsed = Math.max(0, maxWebPerDay - Math.max(0, effectiveWebRemaining));
+  const scoreLimitReached = scoreUsed >= maxScorePerDay;
+  const webLimitReached = useWeb && webUsed >= maxWebPerDay;
+  const disableRunButton = loading || scoreLimitReached || webLimitReached;
   const projectSlugMissing = !initialProjectSlug;
   const disableRun = disableRunButton || projectSlugMissing;
   const publishDisabled = publishStatus === "loading";
@@ -1544,13 +1545,23 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
               <div className="text-base font-semibold text-slate-900">🚀 AI評価を実行</div>
               <div className="text-sm text-text-muted">候補 {items.length} 件 / 指標 {metrics.length} 件</div>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-3">
+              <div className="flex flex-wrap items-center justify-end gap-3">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                <span className="rounded-full bg-slate-200 px-3 py-1 text-slate-700">
-                  AI {Math.max(0, effectiveScoreRemaining)} / {maxScorePerDay}
+                <span
+                  className={clsx(
+                    "rounded-full px-3 py-1",
+                    scoreLimitReached ? "bg-rose-500 text-white" : "bg-slate-200 text-slate-700",
+                  )}
+                >
+                  AI {scoreUsed} / {maxScorePerDay}
                 </span>
-                <span className="rounded-full bg-slate-200 px-3 py-1 text-slate-700">
-                  Web {Math.max(0, effectiveWebRemaining)} / {maxWebPerDay}
+                <span
+                  className={clsx(
+                    "rounded-full px-3 py-1",
+                    webLimitReached ? "bg-rose-500 text-white" : "bg-slate-200 text-slate-700",
+                  )}
+                >
+                  Web {webUsed} / {maxWebPerDay}
                 </span>
               </div>
               <button
@@ -1567,9 +1578,18 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
               <button
                 onClick={run}
                 disabled={disableRun}
-                className="w-full rounded-2xl bg-gradient-to-r from-sky-500 to-emerald-500 px-6 py-3 text-base font-semibold text-white shadow-lg transition hover:from-sky-600 hover:to-emerald-600 disabled:opacity-60 sm:w-auto"
+                className={clsx(
+                  "w-full rounded-2xl px-6 py-3 text-base font-semibold shadow-lg transition sm:w-auto",
+                  scoreLimitReached || webLimitReached
+                    ? "bg-gray-400 text-white cursor-not-allowed"
+                    : "bg-gradient-to-r from-sky-500 to-emerald-500 text-white hover:from-sky-600 hover:to-emerald-600",
+                )}
               >
-                {loading ? "AIが評価しています…" : "AIに評価を依頼する"}
+                {loading
+                  ? "AIが評価しています…"
+                  : scoreLimitReached || webLimitReached
+                    ? "利用上限に達しました"
+                    : "AIに評価を依頼する"}
               </button>
             </div>
           </div>
