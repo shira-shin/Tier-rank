@@ -16,6 +16,8 @@ import type {
   ScoreResponse,
   EvaluationStrictness,
   SearchDepth,
+  CriteriaBreakdownEntry,
+  SourceReference,
 } from "@/lib/types";
 import {
   exportCSV,
