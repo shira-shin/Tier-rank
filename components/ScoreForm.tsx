@@ -12,6 +12,7 @@ import type {
   ItemInput,
   MetricInput,
   MetricType,
+  ScoreRow,
   ScoreRequest,
   ScoreResponse,
   EvaluationStrictness,
