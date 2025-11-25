@@ -254,7 +254,19 @@ function enrichScoreResponse(
     ];
   const metricWeights = metrics.length ? metrics.map((metric) => Number(metric.weight ?? 1)) : [3, 2, 2, 3];
 
-  const ensureScoreEntry = (entry: ScoreResponse["scores"][number], index: number) => {
+  type ScoreEntryInput = {
+    id: string;
+    name?: string;
+    total_score?: number;
+    criteria_breakdown?: CriteriaBreakdownEntry[];
+    main_reason?: string;
+    top_criteria?: string[];
+    risk_notes?: string[];
+    sources?: SourceReference[];
+    tier?: string;
+  };
+
+  const ensureScoreEntry = (entry: ScoreEntryInput, index: number): ScoreRow => {
     const itemName = items.find((item) => item.id === entry.id)?.name ?? entry.name ?? entry.id;
     const baseScore = clampScore(entry.total_score ?? 0.55 + pseudoRandom(index + 1) * 0.25);
     const breakdownSource = Array.isArray(entry.criteria_breakdown) ? entry.criteria_breakdown : [];
@@ -303,6 +315,7 @@ function enrichScoreResponse(
       ...entry,
       name: itemName,
       total_score: totalScore,
+      tier: entry.tier ?? "",
       main_reason: topReason,
       criteria_breakdown: filledBreakdown,
       top_criteria:
