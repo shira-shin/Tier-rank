@@ -589,6 +589,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
 
   const viewRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
+  const formAnchorRef = useRef<HTMLDivElement>(null);
 
   const isLoggedIn = Boolean(session?.user);
   const maxScorePerDay = isLoggedIn ? 50 : 5;
@@ -624,6 +625,13 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
     setStrictness((prev) => (prev === "strict" ? "balanced" : prev));
     setSearchDepth((prev) => (prev === "deep" ? "normal" : prev));
   }, [isSimpleMode]);
+
+  useEffect(() => {
+    if (!formAnchorRef.current) return;
+    if (loading || view === "result") {
+      formAnchorRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [loading, view]);
 
   const summary = useMemo(() => buildReportSummary(result, items, metrics), [result, items, metrics]);
   const maxWeight = useMemo(
@@ -1332,15 +1340,19 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
   }
 
   return (
-    <div className="relative pb-32">
+    <div ref={formAnchorRef} className="relative pb-32">
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="mx-auto w-full max-w-5xl px-4 pb-44 pt-6 sm:px-6 lg:px-8">
           <div className="space-y-6">
-            <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
+            <div className="rounded-3xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-sky-50 p-6 shadow-md ring-1 ring-emerald-100/60 dark:border-slate-800 dark:from-slate-900 dark:to-slate-900">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div>
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm ring-1 ring-emerald-100 dark:bg-slate-800/80 dark:text-emerald-200">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                    入力モード
+                  </div>
                   <h2 className="text-lg font-semibold">操作モード</h2>
-                  <p className="mt-1 text-sm text-text-muted">
+                  <p className="text-sm text-text-muted">
                     パラメータを減らした「かんたん」と、細かく調整できる「詳細」を切り替えできます。シンプルモードでは Web 検索や厳しすぎる設定を自動でオフにします。
                   </p>
                 </div>
@@ -2111,6 +2123,24 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
               </span>
             )}
           </div>
+          {loading && (
+            <div className="mt-4 space-y-3 rounded-2xl border border-sky-100 bg-sky-50/80 p-4 text-sm text-slate-800 shadow-inner ring-1 ring-sky-100 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm dark:bg-slate-800">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-base font-semibold">AIが検索しながら評価中です…</p>
+                  <p className="text-xs text-text-muted">
+                    Web検索モードでは根拠URLを集めるため少し時間がかかります。完了したら自動で入力エリアまで戻ります。
+                  </p>
+                </div>
+              </div>
+              <div className="relative h-2 overflow-hidden rounded-full bg-white/80 dark:bg-slate-800">
+                <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-sky-400/70 via-emerald-400/70 to-sky-400/70" />
+              </div>
+            </div>
+          )}
           {(publishStatus === "success" && publishedUrl) || publishError ? (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-100">
               {publishStatus === "success" && publishedUrl ? (

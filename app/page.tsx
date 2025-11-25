@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import NavBar from "@/components/NavBar";
+import HeroActions from "@/components/HeroActions";
 import { ScoreForm } from "@/components/ScoreForm";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -93,26 +94,7 @@ export default async function Page() {
           <p className="mt-4 max-w-3xl text-base text-slate-600">
             候補の入力、AI評価、公開されたランキングの確認を1画面で。お気に入りのティア表や自分の結果へすぐアクセスできるよう、ホームを再設計しました。
           </p>
-          <div className="mt-8 flex flex-wrap gap-4">
-            <Link
-              href="#input"
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 px-6 py-3 text-lg font-semibold text-white shadow-lg transition hover:translate-y-0.5"
-            >
-              入力ホームに移動 ↘
-            </Link>
-            <Link
-              href="#community"
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-6 py-3 text-lg font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              投稿フィードを見る
-            </Link>
-            <Link
-              href="/explore"
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-6 py-3 text-lg font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              みんなのランキングへ →
-            </Link>
-          </div>
+          <HeroActions targetId="input" />
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
             {heroStats.map((stat) => (
               <div key={stat.label} className="rounded-3xl border border-slate-200 bg-white p-5 text-slate-700 shadow-sm">
