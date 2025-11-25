@@ -41,6 +41,53 @@ const SIMPLE_METRICS: MetricInput[] = [
   { name: "総合", type: "numeric", direction: "MAX", weight: 1, normalize: "none" },
 ];
 
+const QUICK_TEMPLATES: { key: string; title: string; description: string; items: ItemInput[]; metrics: MetricInput[] }[] = [
+  {
+    key: "proposal",
+    title: "提案のたたき台",
+    description: "3 つの候補とシンプルな評価軸をまとめて作成します。",
+    items: [
+      { id: "A", name: "案A", meta: { note: "最もベーシックなプラン" } },
+      { id: "B", name: "案B", meta: { note: "価格と機能のバランス型" } },
+      { id: "C", name: "案C", meta: { note: "差別化要素を強化" } },
+    ],
+    metrics: [
+      { name: "コスト", type: "numeric", direction: "MIN", weight: 2, normalize: "none" },
+      { name: "効果", type: "numeric", direction: "MAX", weight: 3, normalize: "none" },
+      { name: "実現しやすさ", type: "numeric", direction: "MAX", weight: 2, normalize: "none" },
+    ],
+  },
+  {
+    key: "service",
+    title: "サービス比較",
+    description: "ベーシック / スタンダード / プレミアムのような段階比較に使えます。",
+    items: [
+      { id: "A", name: "ライトプラン", meta: { note: "価格重視で導入しやすい" } },
+      { id: "B", name: "スタンダード", meta: { note: "最もバランスの良い選択肢" } },
+      { id: "C", name: "プロ", meta: { note: "上位機能を網羅" } },
+    ],
+    metrics: [
+      { name: "コスパ", type: "numeric", direction: "MAX", weight: 3, normalize: "none" },
+      { name: "機能の充実度", type: "numeric", direction: "MAX", weight: 3, normalize: "none" },
+      { name: "サポート", type: "numeric", direction: "MAX", weight: 2, normalize: "none" },
+    ],
+  },
+  {
+    key: "hiring",
+    title: "採用・人材比較",
+    description: "求人票や人材プールの選定に使える軸をセットします。",
+    items: [
+      { id: "A", name: "候補者A", meta: { note: "経験豊富なオールラウンダー" } },
+      { id: "B", name: "候補者B", meta: { note: "ポテンシャルが高い若手" } },
+    ],
+    metrics: [
+      { name: "スキルフィット", type: "numeric", direction: "MAX", weight: 3, normalize: "none" },
+      { name: "カルチャー", type: "numeric", direction: "MAX", weight: 2, normalize: "none" },
+      { name: "入社時期", type: "numeric", direction: "MIN", weight: 1, normalize: "none" },
+    ],
+  },
+];
+
 const DEFAULT_TIER_LABELS = ["S", "A", "B", "C", "D"];
 const METRIC_TYPES: MetricType[] = ["numeric", "likert", "boolean", "formula"];
 
@@ -480,6 +527,8 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
   const { data: session } = useSession();
   const [items, setItems] = useState<ItemInput[]>(() => DEFAULT_ITEMS.map((item) => ({ ...item })));
   const [metrics, setMetrics] = useState<MetricInput[]>(() => addIdsToMetrics(SIMPLE_METRICS));
+  const [experienceMode, setExperienceMode] = useState<"simple" | "advanced">("simple");
+  const [quickTheme, setQuickTheme] = useState("新サービス");
   const [useWeb, setUseWeb] = useState(false);
   const [strictness, setStrictness] = useState<EvaluationStrictness>("balanced");
   const [searchDepth, setSearchDepth] = useState<SearchDepth>("normal");
@@ -509,6 +558,7 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
   const [publishTags, setPublishTags] = useState("");
   const [publishSummary, setPublishSummary] = useState("");
   const [publishVisibility, setPublishVisibility] = useState<PublishVisibility>("PUBLIC");
+  const isSimpleMode = experienceMode === "simple";
 
   const viewRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
@@ -540,6 +590,13 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
       setHistory([]);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isSimpleMode) return;
+    setUseWeb(false);
+    setStrictness((prev) => (prev === "strict" ? "balanced" : prev));
+    setSearchDepth((prev) => (prev === "deep" ? "normal" : prev));
+  }, [isSimpleMode]);
 
   const summary = useMemo(() => buildReportSummary(result, items, metrics), [result, items, metrics]);
   const maxWeight = useMemo(
@@ -630,6 +687,36 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
     }
     setItems(COMPANY_PRESET.items.map((item) => ({ ...item })));
     setMetrics(addIdsToMetrics(COMPANY_PRESET.metrics));
+  }
+
+  function applyQuickTemplate(templateKey: string) {
+    const template = QUICK_TEMPLATES.find((entry) => entry.key === templateKey);
+    if (!template) return;
+    setItems(template.items.map((item, index) => ({ ...item, id: item.id ?? String.fromCharCode(65 + index) })));
+    setMetrics(addIdsToMetrics(template.metrics.map((metric) => ({ ...metric }))));
+    setCollapsedItems({});
+    setCollapsedMetrics({});
+    setView("editor");
+  }
+
+  function generateSimpleSetFromTheme() {
+    const theme = quickTheme.trim() || "アイデア";
+    const labels = ["ライト", "スタンダード", "プレミアム"];
+    const generatedItems = labels.map((label, index) => ({
+      id: String.fromCharCode(65 + index),
+      name: `${theme} ${label}`,
+      meta: { note: `${label}案。${label === "ライト" ? "導入しやすさ" : label === "プレミアム" ? "付加価値" : "バランス"}を重視。` },
+    }));
+    const generatedMetrics: MetricInput[] = [
+      { name: `${theme}の総合`, type: "numeric", direction: "MAX", weight: 3, normalize: "none" },
+      { name: "コスト", type: "numeric", direction: "MIN", weight: 2, normalize: "none" },
+      { name: "実行のしやすさ", type: "numeric", direction: "MAX", weight: 2, normalize: "none" },
+    ];
+    setItems(generatedItems);
+    setMetrics(addIdsToMetrics(generatedMetrics));
+    setCollapsedItems({});
+    setCollapsedMetrics({});
+    setView("editor");
   }
 
   function validate():
@@ -1222,6 +1309,84 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="mx-auto w-full max-w-5xl px-4 pb-44 pt-6 sm:px-6 lg:px-8">
           <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">操作モード</h2>
+                  <p className="mt-1 text-sm text-text-muted">
+                    パラメータを減らした「かんたん」と、細かく調整できる「詳細」を切り替えできます。シンプルモードでは Web 検索や厳しすぎる設定を自動でオフにします。
+                  </p>
+                </div>
+                <Segmented
+                  value={experienceMode}
+                  onChange={setExperienceMode}
+                  options={[
+                    { label: "かんたん", value: "simple" },
+                    { label: "詳細", value: "advanced" },
+                  ]}
+                />
+              </div>
+              <div className="mt-4 grid gap-4 md:grid-cols-[1.1fr_0.9fr] md:items-start">
+                <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm dark:border-slate-700 dark:bg-slate-900/70">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                    <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white dark:bg-slate-100 dark:text-slate-900">
+                      {isSimpleMode ? "Simple" : "Advanced"}
+                    </span>
+                    {isSimpleMode ? "迷ったらこのまま使えます" : "細かいパラメータをすべて表示"}
+                  </div>
+                  {isSimpleMode ? (
+                    <ul className="space-y-2 text-text-muted">
+                      <li>・候補と指標の入力だけで実行できます。厳しすぎるモードや Web 検索は自動でオフ。</li>
+                      <li>・下のボタンで候補と評価軸をワンクリック生成できます。</li>
+                      <li>・あとから詳細モードに切り替えて調整しても大丈夫です。</li>
+                    </ul>
+                  ) : (
+                    <ul className="space-y-2 text-text-muted">
+                      <li>・重みや正規化、数式などすべての設定を確認・編集できます。</li>
+                      <li>・Web 検索や評価の厳しさも自由に切り替えられます。</li>
+                    </ul>
+                  )}
+                </div>
+                {isSimpleMode && (
+                  <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm shadow-sm dark:border-emerald-700 dark:bg-emerald-950/40">
+                    <div>
+                      <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-50">候補と評価軸をかんたん生成</p>
+                      <p className="text-xs text-emerald-900/80 dark:text-emerald-100/80">テーマを入れて自動作成するか、テンプレートを選んで一括セットできます。</p>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <input
+                        value={quickTheme}
+                        onChange={(event) => setQuickTheme(event.target.value)}
+                        className="w-full rounded-2xl border border-emerald-200 px-3 py-2 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-700 dark:bg-slate-950"
+                        placeholder="例：新サービス / プロジェクト名"
+                      />
+                      <button
+                        type="button"
+                        onClick={generateSimpleSetFromTheme}
+                        className="w-full rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 sm:w-auto"
+                      >
+                        テーマから生成
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {QUICK_TEMPLATES.map((template) => (
+                        <button
+                          key={template.key}
+                          type="button"
+                          onClick={() => applyQuickTemplate(template.key)}
+                          className="rounded-2xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 dark:border-emerald-700 dark:bg-slate-950 dark:text-emerald-100 dark:hover:border-emerald-500 dark:hover:bg-emerald-950/60"
+                          title={template.description}
+                        >
+                          {template.title}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-emerald-900/80 dark:text-emerald-100/80">生成した候補や指標は後から自由に書き換えられます。</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="rounded-3xl border border-slate-200 bg-surface p-6 shadow-sm dark:border-slate-800">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
