@@ -306,9 +306,9 @@ function enrichScoreResponse(
       main_reason: topReason,
       criteria_breakdown: filledBreakdown,
       top_criteria:
-        entry.top_criteria?.length && entry.top_criteria[0]?.key
+        entry.top_criteria?.length && typeof entry.top_criteria[0] === "string"
           ? entry.top_criteria
-          : filledBreakdown.slice(0, 3).map((row) => ({ key: row.key, reason: row.reason })),
+          : filledBreakdown.slice(0, 3).map((row) => row.key),
       risk_notes: (entry.risk_notes ?? fallbackRisks ?? []).filter(Boolean),
       sources: entry.sources?.length ? entry.sources : fallbackSources,
     };
