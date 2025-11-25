@@ -360,7 +360,18 @@ function enrichScoreResponse(
     tiers:
       response.tiers?.length
         ? response.tiers
-        : tierBands.map((label) => ({ label, items: finalizedScores.filter((entry) => entry.tier === label) })),
+        : tierBands.map((label) => ({
+            label,
+            items: finalizedScores
+              .filter((entry) => entry.tier === label)
+              .map(({ id, name, total_score, main_reason, top_criteria }) => ({
+                id,
+                name,
+                score: total_score ?? 0,
+                main_reason,
+                top_criteria,
+              })),
+          })),
   };
 }
 
