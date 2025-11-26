@@ -1464,11 +1464,11 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                     <div className="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">Step 1</div>
                     <div className="text-base font-semibold text-sky-900 dark:text-sky-100">候補を入力する</div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-md bg-sky-600 px-2 py-0.5 text-xs font-semibold text-white">{items.length} 件</span>
+                  <div className="flex items-center gap-3">
+                    <span className="rounded-md bg-sky-600 px-3 py-1 text-sm font-semibold text-white">{items.length} 件</span>
                     <button
                       onClick={addItem}
-                      className="w-full rounded-2xl bg-sky-600 px-5 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-sky-700 sm:w-auto"
+                      className="w-full rounded-2xl bg-gradient-to-r from-sky-600 to-emerald-500 px-6 py-3.5 text-base font-semibold text-white shadow-md transition hover:from-sky-700 hover:to-emerald-600 sm:w-auto"
                     >
                       候補を追加
                     </button>
@@ -1511,12 +1511,14 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                   <span className="text-sm font-semibold text-sky-900 dark:text-sky-100">候補 {idx + 1}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => toggleItemCollapse(idx)}
-                                    className="rounded-xl border border-sky-200 px-4 py-2 text-sm text-sky-700 transition hover:bg-sky-100 dark:border-sky-700 dark:text-sky-100"
-                                  >
-                                    {collapsed ? "＋ 開く" : "－ 閉じる"}
-                                  </button>
+                                  {!isSimpleMode && (
+                                    <button
+                                      onClick={() => toggleItemCollapse(idx)}
+                                      className="rounded-xl border border-sky-200 px-4 py-2 text-sm text-sky-700 transition hover:bg-sky-100 dark:border-sky-700 dark:text-sky-100"
+                                    >
+                                      {collapsed ? "＋ 開く" : "－ 閉じる"}
+                                    </button>
+                                  )}
                                   <span
                                     className="cursor-grab text-sky-500"
                                     {...dragProvided.dragHandleProps}
@@ -1527,48 +1529,62 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                   {items.length > 1 && (
                                     <button
                                       onClick={() => removeItem(idx)}
-                                    className="rounded-xl px-4 py-2 text-sm text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                                      className="rounded-xl px-4 py-2 text-sm text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
                                     >
                                       削除
                                     </button>
                                   )}
                                 </div>
                               </div>
-                              {!collapsed && (
+                              {isSimpleMode ? (
                                 <div className="space-y-3 text-sm">
-                                  <div className="grid gap-4 md:grid-cols-2">
-                                    <label className="flex flex-col gap-2">
-                                      <span className="font-medium">候補ID</span>
-                                      <span className="text-xs text-sky-800/80 dark:text-sky-100/70">AIが識別する短いID（例：A）</span>
-                                      <input
-                                        className="w-full rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
-                                        value={item.id}
-                                        onChange={(event) => updateItems(idx, { id: event.target.value })}
-                                        placeholder="例: A"
-                                      />
-                                    </label>
-                                    <label className="flex flex-col gap-2">
-                                      <span className="font-medium">表示名</span>
-                                      <span className="text-xs text-sky-800/80 dark:text-sky-100/70">一般ユーザー向けの名前（例：プランA）</span>
-                                      <input
-                                        className="w-full rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
-                                        value={item.name ?? ""}
-                                        onChange={(event) => updateItems(idx, { name: event.target.value })}
-                                        placeholder="例: プランA"
-                                      />
-                                    </label>
-                                  </div>
                                   <label className="flex flex-col gap-2">
-                                    <span className="font-medium">補足メモ（任意）</span>
-                                    <span className="text-xs text-sky-800/80 dark:text-sky-100/70">比較時の参考情報をメモできます</span>
-                                    <textarea
-                                      className="min-h-[72px] w-full rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
-                                      value={metaNote}
-                                      onChange={(event) => updateItems(idx, { metaNote: event.target.value })}
-                                      placeholder="例: 月額980円の入門プラン"
+                                    <span className="font-medium">候補名</span>
+                                    <input
+                                      className="w-full rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
+                                      value={item.name ?? ""}
+                                      onChange={(event) => updateItems(idx, { name: event.target.value })}
+                                      placeholder="例: プランA"
                                     />
                                   </label>
                                 </div>
+                              ) : (
+                                !collapsed && (
+                                  <div className="space-y-3 text-sm">
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                      <label className="flex flex-col gap-2">
+                                        <span className="font-medium">候補ID</span>
+                                        <span className="text-xs text-sky-800/80 dark:text-sky-100/70">AIが識別する短いID（例：A）</span>
+                                        <input
+                                          className="w-full rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
+                                          value={item.id}
+                                          onChange={(event) => updateItems(idx, { id: event.target.value })}
+                                          placeholder="例: A"
+                                        />
+                                      </label>
+                                      <label className="flex flex-col gap-2">
+                                        <span className="font-medium">表示名</span>
+                                        <span className="text-xs text-sky-800/80 dark:text-sky-100/70">一般ユーザー向けの名前（例：プランA）</span>
+                                        <input
+                                          className="w-full rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
+                                          value={item.name ?? ""}
+                                          onChange={(event) => updateItems(idx, { name: event.target.value })}
+                                          placeholder="例: プランA"
+                                        />
+                                      </label>
+                                    </div>
+                                    <label className="flex flex-col gap-2">
+                                      <span className="font-medium">補足メモ（任意）</span>
+                                      <span className="text-xs text-sky-800/80 dark:text-sky-100/70">比較時の参考情報をメモできます</span>
+                                      <textarea
+                                        className="min-h-[72px] w-full rounded-2xl border border-sky-300 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-sky-800 dark:bg-slate-950"
+                                        value={metaNote}
+                                        onChange={(event) => updateItems(idx, { metaNote: event.target.value })}
+                                        placeholder="例: 月額980円の入門プラン"
+                                      />
+                                    </label>
+                                  </div>
+                                )
                               )}
                             </div>
                           )}
@@ -1588,11 +1604,11 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                     <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Step 2</div>
                     <div className="text-base font-semibold text-emerald-900 dark:text-emerald-100">評価軸を設定する</div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">{metrics.length} 件</span>
+                  <div className="flex items-center gap-3">
+                    <span className="rounded-md bg-emerald-600 px-3 py-1 text-sm font-semibold text-white">{metrics.length} 件</span>
                     <button
                       onClick={addMetric}
-                      className="w-full rounded-2xl bg-emerald-600 px-5 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-emerald-700 sm:w-auto"
+                      className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-sky-500 px-6 py-3.5 text-base font-semibold text-white shadow-md transition hover:from-emerald-700 hover:to-sky-600 sm:w-auto"
                     >
                       指標を追加
                     </button>
@@ -1660,12 +1676,14 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                   <span className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">指標 {idx + 1}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => toggleMetricCollapse(idx)}
-                                    className="rounded-xl border border-emerald-200 px-4 py-2 text-sm text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-100"
-                                  >
-                                    {collapsed ? "＋ 開く" : "－ 閉じる"}
-                                  </button>
+                                  {!isSimpleMode && (
+                                    <button
+                                      onClick={() => toggleMetricCollapse(idx)}
+                                      className="rounded-xl border border-emerald-200 px-4 py-2 text-sm text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-100"
+                                    >
+                                      {collapsed ? "＋ 開く" : "－ 閉じる"}
+                                    </button>
+                                  )}
                                   <span
                                     className="cursor-grab text-emerald-500"
                                     {...dragProvided.dragHandleProps}
@@ -1676,15 +1694,47 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                   {metrics.length > 1 && (
                                     <button
                                       onClick={() => removeMetric(idx)}
-                                    className="rounded-xl px-4 py-2 text-sm text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                                      className="rounded-xl px-4 py-2 text-sm text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
                                     >
                                       削除
                                     </button>
                                   )}
                                 </div>
                               </div>
-                              {!collapsed && (
+                              {isSimpleMode ? (
                                 <div className="space-y-4 text-sm">
+                                  <label className="flex flex-col gap-2">
+                                    <span className="font-medium">パラメータ名</span>
+                                    <input
+                                      className="w-full rounded-2xl border border-emerald-200 px-4 py-3 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:border-emerald-800 dark:bg-slate-950"
+                                      value={metric.name}
+                                      onChange={(event) => updateMetric(idx, { name: event.target.value })}
+                                      placeholder="例: コスパ"
+                                    />
+                                  </label>
+                                  <div className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between text-xs font-medium text-emerald-800 dark:text-emerald-100">
+                                      <span>重み（重要度）</span>
+                                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200">
+                                        {Number(metric.weight ?? 1).toFixed(1)} / {maxWeight.toFixed(1)}
+                                      </span>
+                                    </div>
+                                    <div className="rounded-2xl bg-gradient-to-r from-emerald-50 via-white to-emerald-50 p-4 shadow-inner dark:from-emerald-950/40 dark:via-slate-950 dark:to-emerald-950/40">
+                                      <input
+                                        type="range"
+                                        min={1}
+                                        max={maxWeight}
+                                        step={0.5}
+                                        value={Number(metric.weight ?? 1)}
+                                        onChange={(event) => updateMetric(idx, { weight: Number(event.target.value) })}
+                                        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-emerald-100 accent-emerald-500"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                !collapsed && (
+                                  <div className="space-y-4 text-sm">
                                   <div className="grid gap-4 md:grid-cols-2">
                                     <label className="flex flex-col gap-2">
                                       <span className="font-medium">指標名</span>
@@ -1843,7 +1893,8 @@ export function ScoreForm({ initialProjectSlug, displayContext = "default" }: Sc
                                     </div>
                                   )}
                                 </div>
-                              )}
+                              )
+                            )}
                             </div>
                           )}
                         </Draggable>
