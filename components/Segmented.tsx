@@ -10,17 +10,25 @@ export default function Segmented<T extends string>({
   className?: string;
 }) {
   return (
-    <div className={clsx("inline-flex rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 shadow-sm", className)}>
+    <div
+      className={clsx(
+        "inline-flex items-center gap-1 rounded-full border-2 border-slate-200 bg-slate-50 p-1 shadow-md dark:border-slate-700 dark:bg-slate-900",
+        className,
+      )}
+    >
       {options.map(o=>(
         <button key={o.value}
           onClick={()=>onChange(o.value)}
           className={clsx(
-            "rounded-lg px-3 py-1.5 text-sm transition",
+            "relative rounded-full px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-1",
             value===o.value
-              ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-              : "hover:bg-slate-100 dark:hover:bg-slate-800"
+              ? "bg-gradient-to-r from-emerald-500 to-sky-500 text-white shadow-lg shadow-emerald-100/50 dark:shadow-none"
+              : "bg-white text-slate-700 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
           )}
         >
+          {value===o.value && (
+            <span className="absolute inset-x-2 -top-1 block h-1 rounded-full bg-white/40" aria-hidden />
+          )}
           {o.label}
         </button>
       ))}
